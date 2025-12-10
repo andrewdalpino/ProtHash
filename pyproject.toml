@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prot-hash"
+description = "A protein hashing library for fast and scalable protein sequence search."
+version = "0.0.1"
+requires-python = ">= 3.10"
+dependencies = [
+  "torch>=2.7.1, <3.0.0",
+  "huggingface_hub>=0.33.4, <0.34.0",
+]
+authors = [
+  {name = "Andrew DalPino"},
+]
+readme = "README.md"
+license = {text = "MIT"}
+
+[project.optional-dependencies]
+dev = ["mypy", "black", "matplotlib"]
+test = ["mypy", "black"]
+
+[project.urls]
+Homepage = "https://github.com/andrewdalpino/prot-hash"
+Documentation = "https://github.com/andrewdalpino/prot-hash/README.md"
+Source = "https://github.com/andrewdalpino/prot-hash"
