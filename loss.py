@@ -18,9 +18,9 @@ class DistillationLoss(Module):
         self.temperature = temperature
 
     def forward(self, y_student: Tensor, y_teacher: Tensor) -> Tensor:
-        y_student_hat = y_student / self.temperature
-        y_teacher_hat = y_teacher / self.temperature
+        s = y_student / self.temperature
+        t = y_teacher / self.temperature
 
-        loss = self.mse_loss_function(y_student_hat, y_teacher_hat)
+        loss = self.mse_loss_function(s, t)
 
         return loss

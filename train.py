@@ -31,17 +31,17 @@ def main():
         description="Distill a larger ESMC model into a smaller one."
     )
 
-    parser.add_argument("--teacher_model_name", type=str, default="esmc_600m")
+    parser.add_argument("--teacher_model_name", type=str, default="esmc_300m")
     parser.add_argument("--num_dataset_processes", default=1, type=int)
     parser.add_argument("--min_sequence_length", default=1, type=int)
     parser.add_argument("--max_sequence_length", default=2048, type=int)
     parser.add_argument("--learning_rate", default=1e-4, type=float)
-    parser.add_argument("--max_gradient_norm", default=1.0, type=float)
+    parser.add_argument("--max_gradient_norm", default=100.0, type=float)
     parser.add_argument("--temperature", default=2.0, type=float)
     parser.add_argument("--batch_size", default=8, type=int)
     parser.add_argument("--gradient_accumulation_steps", default=16, type=int)
-    parser.add_argument("--max_steps", default=20000, type=int)
-    parser.add_argument("--embedding_dimensions", default=768, type=int)
+    parser.add_argument("--max_steps", default=2000, type=int)
+    parser.add_argument("--embedding_dimensions", default=512, type=int)
     parser.add_argument("--q_heads", default=16, type=int)
     parser.add_argument("--kv_heads", default=4, type=int)
     parser.add_argument("--hidden_ratio", default=4, type=int)
@@ -152,7 +152,8 @@ def main():
 
     student = ProtHash(**model_args)
 
-    student.add_adapter_head(teacher.embed.embedding_dim)
+    if args.embedding_dimensions != teacher.embed.embedding_dim:
+        student.add_adapter_head(teacher.embed.embedding_dim)
 
     student = student.to(args.device)
 
@@ -178,7 +179,7 @@ def main():
 
     student.train()
 
-    cosine_similarity_metric = CosineSimilarity()
+    cosine_similarity_metric = CosineSimilarity(reduction="mean")
 
     new_progress_bar = partial(
         tqdm,

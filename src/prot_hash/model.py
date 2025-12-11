@@ -234,7 +234,7 @@ class EncoderBlock(Module):
 
 
 class SelfAttention(Module):
-    """Group query self-attention."""
+    """Group query self-attention using fast scaled dot product attention kernel."""
 
     def __init__(
         self,
@@ -327,7 +327,7 @@ class SelfAttention(Module):
 
 
 class InvertedBottleneck(Module):
-    """A two layer fully-connected network with wide non-linear activations."""
+    """A two layer fully-connected network with a wide non-linear activation."""
 
     def __init__(self, embedding_dimensions: int, hidden_ratio: int, dropout: float):
         super().__init__()
