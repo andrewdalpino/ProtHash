@@ -3,8 +3,8 @@ requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "prot-hash"
-description = "A protein hashing library for fast and scalable protein sequence search."
+name = "prothash"
+description = "A protein language model that outputs amino acid sequence embeddings for use in clustering, classification, locality-sensitive hashing, and more."
 version = "0.0.1"
 requires-python = ">= 3.10"
 dependencies = [
@@ -22,6 +22,6 @@ dev = ["mypy", "black", "matplotlib"]
 test = ["mypy", "black"]
 
 [project.urls]
-Homepage = "https://github.com/andrewdalpino/prot-hash"
-Documentation = "https://github.com/andrewdalpino/prot-hash/README.md"
-Source = "https://github.com/andrewdalpino/prot-hash"
+Homepage = "https://github.com/andrewdalpino/ProtHash"
+Documentation = "https://github.com/andrewdalpino/ProtHash/README.md"
+Source = "https://github.com/andrewdalpino/ProtHash"

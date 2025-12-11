@@ -7,7 +7,7 @@ class DistillationLoss(Module):
     def __init__(self, temperature: float):
         """
         Args:
-            temperature (float): The smoothing parameter for the teacher's logits.
+            temperature (float): The smoothing parameter for the logits.
         """
 
         super().__init__()

@@ -19,7 +19,7 @@ from torch.utils.tensorboard import SummaryWriter
 from esm.tokenization import EsmSequenceTokenizer
 from esm.models.esmc import ESMC
 
-from src.prot_hash.model import ProtHash
+from src.prothash.model import ProtHash
 from data import SwissProt
 from loss import DistillationLoss
 

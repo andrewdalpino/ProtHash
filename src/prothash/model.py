@@ -25,6 +25,10 @@ from huggingface_hub import PyTorchModelHubMixin
 
 
 class ProtHash(Module, PyTorchModelHubMixin):
+    """
+    An encoder-only transformer model for protein sequence embedding.
+    """
+
     def __init__(
         self,
         vocabulary_size: int,
@@ -113,10 +117,11 @@ class ProtHash(Module, PyTorchModelHubMixin):
             t <= self.context_length
         ), f"Input sequence length {t} exceeds the maximum context length {self.context_length}."
 
+        z_tok = self.token_embeddings(x)
+
         x_pos = torch.arange(t, dtype=torch.int64, device=x.device)
         x_pos = x_pos.unsqueeze(0).expand(b, t)
 
-        z_tok = self.token_embeddings(x)
         z_pos = self.position_embeddings(x_pos)
 
         z = z_tok + z_pos
@@ -139,14 +144,14 @@ class ProtHash(Module, PyTorchModelHubMixin):
 
         z = self.forward(x)
 
-        # Grab the classification token <CLS> embeddings.
+        # Grab the classification token <CLS> vector.
         z = z[:, 0, :]
 
         return z
 
 
 class Encoder(Module):
-    """A stack of encoder blocks."""
+    """A deep stack of encoder blocks consisting of self-attention and feed-forward layers."""
 
     def __init__(
         self,
@@ -234,7 +239,7 @@ class EncoderBlock(Module):
 
 
 class SelfAttention(Module):
-    """Group query self-attention using fast scaled dot product attention kernel."""
+    """Group query self-attention using fused scaled dot product attention kernel."""
 
     def __init__(
         self,
