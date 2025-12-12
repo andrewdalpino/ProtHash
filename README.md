@@ -14,7 +14,7 @@ A protein language model that outputs amino acid sequence embeddings for use in 
 
 | Name | Embedding Dimensionality | Attention Heads (Q/KV) | Encoder Layers | Total Params |
 |---|---|---|---|---|
-| andrewdalpino/ProtHash-512-Tiny | 512 | 16/4 | 4 | 13M |
+| [andrewdalpino/ProtHash-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 512 | 16/4 | 4 | 13M |
 | andrewdalpino/ProtHash-512 | 512 | 16/4 | 10 | 13M |
 
 ## Pretrained Example
