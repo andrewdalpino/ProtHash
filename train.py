@@ -202,6 +202,7 @@ def main():
     )
 
     total_distillation_l2 = 0.0
+    num_batches = 0
 
     progress_bar = new_progress_bar(desc=f"Step {step:,}")
 
@@ -225,6 +226,7 @@ def main():
         scaled_loss.backward()
 
         total_distillation_l2 += loss.item()
+        num_batches += 1
 
         progress_bar.update(1)
 
@@ -237,9 +239,7 @@ def main():
 
             progress_bar.close()
 
-            average_distillation_l2 = (
-                total_distillation_l2 / args.gradient_accumulation_steps
-            )
+            average_distillation_l2 = total_distillation_l2 / num_batches
 
             gradient_norm = norm.item()
 
@@ -297,6 +297,7 @@ def main():
             step += 1
 
             total_distillation_l2 = 0.0
+            num_batches = 0
 
             progress_bar = new_progress_bar(desc=f"Step {step:,}")
 

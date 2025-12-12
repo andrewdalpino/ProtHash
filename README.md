@@ -14,18 +14,18 @@ A protein language model that outputs amino acid sequence embeddings for use in 
 
 | Name | Embedding Dimensionality | Attention Heads (Q/KV) | Encoder Layers | Total Params |
 |---|---|---|---|---|
-| andrewdalpino/ProtHash-512 | 512 | 16/4 | 10 | 13M |
 | andrewdalpino/ProtHash-512-Tiny | 512 | 16/4 | 4 | 13M |
+| andrewdalpino/ProtHash-512 | 512 | 16/4 | 10 | 13M |
 
 ## Pretrained Example
 
-First, you'll need the `prothash` and `esm` packages installed into your environment.
+First, you'll need the `prothash` and `esm` packages installed into your environment. We recommend using a virtual environment such as Python's `venv` module to prevent version conflicts with any system packages.
 
 ```sh
 pip install prothash esm
 ```
 
-Then, load the weights from HuggingFace Hub, tokenize a protein sequence, and pass it to the model.
+Then, load the weights from HuggingFace Hub, tokenize a protein sequence, and pass it to the model. ProtHash adopts the ESM tokenizer as it's amino acids tokenization scheme. The output will be an embedding vector that can be used in downstream tasks such as comparing to other protein sequence embeddings, clustering, and near-duplicate detection.
 
 ```python
 import torch
@@ -36,9 +36,11 @@ from prothash.model import ProtHash
 
 tokenizer = EsmSequenceTokenizer()
 
-model_name = "andrewdalpino/ProtHash-512"
+model_name = "andrewdalpino/ProtHash-512-Tiny"
 
 model = ProtHash.from_pretrained(model_name)
+
+sequence = input("Enter a sequence: ")
 
 out = tokenizer(sequence, max_length=2048)
 

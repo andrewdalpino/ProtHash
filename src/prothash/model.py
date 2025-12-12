@@ -149,7 +149,7 @@ class ProtHash(Module, PyTorchModelHubMixin):
         z = z[:, 0, :]
 
         return z
-    
+
 
 class ONNXModel(Module):
     """A wrapper class for exporting the ProtHash model to ONNX format."""
