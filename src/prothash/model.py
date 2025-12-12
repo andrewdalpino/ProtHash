@@ -149,6 +149,18 @@ class ProtHash(Module, PyTorchModelHubMixin):
         z = z[:, 0, :]
 
         return z
+    
+
+class ONNXModel(Module):
+    """A wrapper class for exporting the ProtHash model to ONNX format."""
+
+    def __init__(self, model: ProtHash):
+        super().__init__()
+
+        self.model = model
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.model.embed(x)
 
 
 class Encoder(Module):

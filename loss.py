@@ -18,6 +18,11 @@ class DistillationLoss(Module):
         self.temperature = temperature
 
     def forward(self, y_student: Tensor, y_teacher: Tensor) -> Tensor:
+        assert y_student.shape == y_teacher.shape, (
+            "Student and teacher embeddings must have the same shape. "
+            f"Got {y_student.shape} and {y_teacher.shape}."
+        )
+
         s = y_student / self.temperature
         t = y_teacher / self.temperature
 

@@ -6,4 +6,7 @@ transformers~=4.48.1
 tensorboard~=2.19.0
 scikit-learn~=1.7.2
 matplotlib~=3.10.3
+onnx==1.19.1
+onnxscript==0.5.4
+onnxruntime==1.23.1
 tqdm~=4.67.1

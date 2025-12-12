@@ -40,7 +40,7 @@ def main():
     parser.add_argument("--temperature", default=2.0, type=float)
     parser.add_argument("--batch_size", default=8, type=int)
     parser.add_argument("--gradient_accumulation_steps", default=16, type=int)
-    parser.add_argument("--max_steps", default=2000, type=int)
+    parser.add_argument("--max_steps", default=2500, type=int)
     parser.add_argument("--embedding_dimensions", default=512, type=int)
     parser.add_argument("--q_heads", default=16, type=int)
     parser.add_argument("--kv_heads", default=4, type=int)
@@ -141,6 +141,7 @@ def main():
 
     teacher = ESMC.from_pretrained(args.teacher_model_name)
 
+    # Freeze teacher model parameters.
     for module in teacher.modules():
         for param in module.parameters():
             param.requires_grad = False
@@ -261,9 +262,9 @@ def main():
                         out_teacher = teacher.forward(x)
                         y_teacher = out_teacher.hidden_states[-1][:, 0, :]
 
-                        y_student = student.embed(x)
+                    y_student = student.embed(x)
 
-                        cosine_similarity_metric.update(y_student, y_teacher)
+                    cosine_similarity_metric.update(y_student, y_teacher)
 
                 average_cosine_similarity = cosine_similarity_metric.compute()
 
@@ -280,6 +281,7 @@ def main():
             if step % args.checkpoint_interval == 0:
                 checkpoint = {
                     "step": step,
+                    "teacher_embedding_dimensions": teacher.embed.embedding_dim,
                     "model_args": model_args,
                     "model": student.state_dict(),
                     "optimizer": optimizer.state_dict(),
