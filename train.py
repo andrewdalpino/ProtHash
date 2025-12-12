@@ -48,6 +48,7 @@ def main():
     parser.add_argument("--dropout", default=0.0, type=float)
     parser.add_argument("--num_encoder_layers", default=10, type=int)
     parser.add_argument("--eval_interval", default=100, type=int)
+    parser.add_argument("--test_ratio", default=0.01, type=float)
     parser.add_argument("--checkpoint_interval", default=100, type=int)
     parser.add_argument(
         "--checkpoint_path", default="./checkpoints/checkpoint.pt", type=str
@@ -58,6 +59,11 @@ def main():
     parser.add_argument("--seed", default=None, type=int)
 
     args = parser.parse_args()
+
+    if args.max_sequence_length > 2048:
+        raise ValueError(
+            f"Maximum sequence length cannot exceed 2048, {args.max_sequence_length} given."
+        )
 
     if args.batch_size < 1:
         raise ValueError(f"Batch size must be greater than 0, {args.batch_size} given.")
@@ -73,6 +79,11 @@ def main():
     if args.eval_interval < 1:
         raise ValueError(
             f"Eval interval must be greater than 0, {args.eval_interval} given."
+        )
+
+    if args.test_ratio <= 0.0 or args.test_ratio >= 1.0:
+        raise ValueError(
+            f"Test ratio must be in the range (0.0, 1.0), {args.test_ratio} given."
         )
 
     if args.checkpoint_interval < 1:
@@ -110,7 +121,9 @@ def main():
         max_sequence_length=args.max_sequence_length,
     )
 
-    training, testing = random_split(dataset, (0.99, 0.01))
+    train_ratio = 1.0 - args.test_ratio
+
+    training, testing = random_split(dataset, (train_ratio, args.test_ratio))
 
     new_dataloader = partial(
         DataLoader,
@@ -235,7 +248,7 @@ def main():
             print(
                 f"Step {step:,}:",
                 f"Distillation L2: {average_distillation_l2:.5f},",
-                f"Gradient Norm: {gradient_norm:.4f}",
+                f"Gradient Norm: {gradient_norm:.5f}",
             )
 
             if step % args.eval_interval == 0:

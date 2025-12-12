@@ -59,6 +59,7 @@ class ProtHash(Module, PyTorchModelHubMixin):
         )
 
         self.vocabulary_size = vocabulary_size
+        self.padding_index = padding_index
         self.context_length = context_length
         self.embedding_dimensions = embedding_dimensions
 
@@ -69,6 +70,17 @@ class ProtHash(Module, PyTorchModelHubMixin):
     @property
     def num_trainable_parameters(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+    def add_adapter_head(self, out_dimensions: int) -> None:
+        """Add an adapter head to the model for adapting to the teacher's embedding dimensionality."""
+
+        self.head = AdapterHead(self.embedding_dimensions, out_dimensions)
+
+    def remove_adapter_head(self) -> None:
+        """Remove the adapter head from the model."""
+
+        if hasattr(self, "head"):
+            del self.head
 
     def add_lora_adapters(self, rank: int, alpha: float) -> None:
         """Reparameterize the weights of the model using LoRA adapters."""
@@ -91,17 +103,6 @@ class ProtHash(Module, PyTorchModelHubMixin):
 
             for name in lora_params:
                 remove_parametrizations(module, name)
-
-    def add_adapter_head(self, out_dimensions: int) -> None:
-        """Add an adapter head to the model for adapting to the teacher's embedding dimensionality."""
-
-        self.head = AdapterHead(self.embedding_dimensions, out_dimensions)
-
-    def remove_adapter_head(self) -> None:
-        """Remove the adapter head from the model."""
-
-        if hasattr(self, "head"):
-            del self.head
 
     def forward(self, x: Tensor) -> Tensor:
         """
@@ -228,14 +229,14 @@ class EncoderBlock(Module):
         z = self.norm1.forward(x)
         z = self.stage1.forward(z)
 
-        x_hat = x + z  # Local residual connection
+        z1 = x + z  # Local residual connection
 
-        z = self.norm2.forward(x_hat)
+        z = self.norm2.forward(z1)
         z = self.stage2.forward(z)
 
-        z = x_hat + z  # Local residual connection
+        z2 = z1 + z  # Local residual connection
 
-        return z
+        return z2
 
 
 class SelfAttention(Module):
