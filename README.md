@@ -12,10 +12,10 @@ A protein language model that outputs amino acid sequence embeddings for use in 
 
 ## Pretrained Models
 
-| Name | Embedding Dimensionality | Attention Heads (Q/KV) | Encoder Layers | Total Params |
-|---|---|---|---|---|
-| [andrewdalpino/ProtHash-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 512 | 16/4 | 4 | 13M |
-| andrewdalpino/ProtHash-512 | 512 | 16/4 | 10 | 13M |
+| Name | Context Length | Embedding Dimensionality | Attention Heads (Q/KV) | Encoder Layers | Total Params |
+|---|---|---|---|---|---|
+| [andrewdalpino/ProtHash-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 2048 | 512 | 16/4 | 4 | 13M |
+| andrewdalpino/ProtHash-512 | 2048 | 512 | 16/4 | 10 | 13M |
 
 ## Pretrained Example
 
@@ -59,3 +59,4 @@ print(y_embed)
 >- T. Hayes, et al. Simulating 500 million years of evolution with a language model, 2024.
 >- B. Zhang, et al. Root Mean Square Layer Normalization. 33rd Conference on Neural Information Processing Systems, NeurIPS 2019.
 >- J. Ainslie, et al. GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints, Google Research, 2023.
+>- T. Kim, et al. Comparing Kullback-Leibler Divergence and Mean Squared Error Loss in Knowledge Distillation, 2021.

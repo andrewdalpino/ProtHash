@@ -109,7 +109,7 @@ class ProtHash(Module, PyTorchModelHubMixin):
         Forward pass through the model with head for adapting to teacher's dimensionality.
 
         Args:
-            x (Tensor): The input sequence of shape (batch_size, sequence_length).
+            x (Tensor): The token index sequence of shape (batch_size, sequence_length).
         """
 
         b, t = x.size()
@@ -140,7 +140,10 @@ class ProtHash(Module, PyTorchModelHubMixin):
         Output the contextual embeddings of the input sequence.
 
         Args:
-            x (Tensor): The input sequence of shape (batch_size, sequence_length).
+            x (Tensor): The token index sequence of shape (batch_size, sequence_length).
+
+        Returns:
+            Tensor: The contextual embeddings of shape (batch_size, embedding_dimensions).
         """
 
         z = self.forward(x)
@@ -382,7 +385,7 @@ class InvertedBottleneck(Module):
 
 
 class AdapterHead(Module):
-    """A linear adapter head for adapting to the teacher's embedding dimensionality."""
+    """A head for adapting to the teacher's embedding dimensionality during training."""
 
     def __init__(self, in_dimensions: int, out_dimensions: int):
         super().__init__()

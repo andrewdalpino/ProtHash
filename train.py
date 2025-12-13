@@ -37,7 +37,7 @@ def main():
     parser.add_argument("--max_sequence_length", default=2048, type=int)
     parser.add_argument("--learning_rate", default=1e-4, type=float)
     parser.add_argument("--max_gradient_norm", default=100.0, type=float)
-    parser.add_argument("--temperature", default=2.0, type=float)
+    parser.add_argument("--temperature", default=4.0, type=float)
     parser.add_argument("--batch_size", default=8, type=int)
     parser.add_argument("--gradient_accumulation_steps", default=16, type=int)
     parser.add_argument("--max_steps", default=2500, type=int)
