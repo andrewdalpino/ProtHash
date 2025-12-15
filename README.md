@@ -1,6 +1,6 @@
 # ProtHash
 
-A protein language model that outputs amino acid sequence embeddings for use in clustering, classification, locality-sensitive hashing, and more. Distilled from the ESMC family of models with deep comprehension of protein structure, ProtHash produces contextual embeddings that align in vector space according to the sequences' atomic structure. Trained to mimic its ESMC teacher model, ProtHash achieves near perfect similarity to ESMC embeddings but at a greatly reduced computational cost.
+A protein language model that outputs amino acid sequence embeddings for use in clustering, classification, locality-sensitive hashing, and more. Distilled from the [ESMC](https://www.evolutionaryscale.ai/blog/esm-cambrian) family of models with deep comprehension of protein structure, ProtHash produces contextual embeddings that align in vector space according to the sequences' atomic structure. Trained on the [SwissProt](https://huggingface.co/datasets/andrewdalpino/SwissProt-Gene-Ontology) dataset to mimic the activations of its ESMC teacher model, ProtHash embeddings have near perfect similarity to ESMC embeddings but at a greatly reduced computational cost.
 
 ## Key Features
 
@@ -14,8 +14,8 @@ A protein language model that outputs amino acid sequence embeddings for use in 
 
 | Name | Context Length | Embedding Dimensionality | Attention Heads (Q/KV) | Encoder Layers | Total Params |
 |---|---|---|---|---|---|
-| [andrewdalpino/ProtHash-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 2048 | 512 | 16/4 | 4 | 13M |
-| andrewdalpino/ProtHash-512 | 2048 | 512 | 16/4 | 10 | 13M |
+| [andrewdalpino/ProtHash-384-Tiny](https://huggingface.co/andrewdalpino/ProtHash-384-Tiny) | 2048 | 384 | 16/4 | 4 | 7M |
+| [andrewdalpino/ProtHash-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 2048 | 512 | 16/4 | 4 | 12M |
 
 ## Pretrained Example
 

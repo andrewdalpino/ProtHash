@@ -14,6 +14,7 @@ from torch.nn import (
     SiLU,
     RMSNorm,
     Dropout1d,
+    Identity,
     Parameter,
 )
 
@@ -58,6 +59,8 @@ class ProtHash(Module, PyTorchModelHubMixin):
             dropout=dropout,
         )
 
+        self.head = Identity()
+
         self.vocabulary_size = vocabulary_size
         self.padding_index = padding_index
         self.context_length = context_length
@@ -79,8 +82,7 @@ class ProtHash(Module, PyTorchModelHubMixin):
     def remove_adapter_head(self) -> None:
         """Remove the adapter head from the model."""
 
-        if hasattr(self, "head"):
-            del self.head
+        self.head = Identity()
 
     def add_lora_adapters(self, rank: int, alpha: float) -> None:
         """Reparameterize the weights of the model using LoRA adapters."""
@@ -106,8 +108,6 @@ class ProtHash(Module, PyTorchModelHubMixin):
 
     def forward(self, x: Tensor) -> Tensor:
         """
-        Forward pass through the model with head for adapting to teacher's dimensionality.
-
         Args:
             x (Tensor): The token index sequence of shape (batch_size, sequence_length).
         """
@@ -128,9 +128,7 @@ class ProtHash(Module, PyTorchModelHubMixin):
         z = z_tok + z_pos
 
         z = self.encoder.forward(z)
-
-        if hasattr(self, "head"):
-            z = self.head.forward(z)
+        z = self.head.forward(z)
 
         return z
 
@@ -148,7 +146,7 @@ class ProtHash(Module, PyTorchModelHubMixin):
 
         z = self.forward(x)
 
-        # Grab the classification token <CLS> vector.
+        # Grab the classification token <CLS> vectors.
         z = z[:, 0, :]
 
         return z
@@ -385,12 +383,12 @@ class InvertedBottleneck(Module):
 
 
 class AdapterHead(Module):
-    """A head for adapting to the teacher's embedding dimensionality during training."""
+    """A head for adapting to the teacher's embedding dimensionality."""
 
     def __init__(self, in_dimensions: int, out_dimensions: int):
         super().__init__()
 
-        self.linear = Linear(in_dimensions, out_dimensions)
+        self.linear = Linear(in_dimensions, out_dimensions, bias=True)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.linear(x)
