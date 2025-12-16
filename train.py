@@ -50,7 +50,7 @@ def main():
     parser.add_argument("--embedding_dimensions", default=512, type=int)
     parser.add_argument("--q_heads", default=16, type=int)
     parser.add_argument("--kv_heads", default=4, type=int)
-    parser.add_argument("--hidden_ratio", default=4, type=int)
+    parser.add_argument("--hidden_ratio", default=2, type=int)
     parser.add_argument("--dropout", default=0.0, type=float)
     parser.add_argument("--num_encoder_layers", default=4, type=int)
     parser.add_argument("--eval_interval", default=100, type=int)
