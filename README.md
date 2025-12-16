@@ -4,18 +4,18 @@ A protein language model that outputs amino acid sequence embeddings for use in 
 
 ## Key Features
 
+- **Blazing fast and efficient**: ProtHash uses as little as 3% of its ESMC teacher's total parameters to achieve near perfect cosine similarity between the two embedding spaces.
+
 - **Structurally-relevant embeddings**: Structurally similar proteins will show up nearby in the embedding space enabling downstream tasks such as clustering, classification, and locality-sensitive hashing based on atomic structure.
 
-- **Blazing fast and efficient**: ProtHash uses only 3% of ESMC's parameters to achieve near perfect cosine similarity between the two embedding spaces.
-
-- **Long context**: With a context window of 2048 amino acid tokens you can embed proteins with long sequences.
+- **Compatible with ESMC embeddings**: ProtHash can output embeddings in its native or ESMC teacher's dimensionality - allowing it to serve as both a faster drop-in replacement for ESMC embeddings or a more efficient compressed representation.
 
 ## Pretrained Models
 
-| Name | Context Length | Embedding Dimensionality | Attention Heads (Q/KV) | Encoder Layers | Total Params |
-|---|---|---|---|---|---|
-| [andrewdalpino/ProtHash-384-Tiny](https://huggingface.co/andrewdalpino/ProtHash-384-Tiny) | 2048 | 384 | 16/4 | 4 | 7M |
-| [andrewdalpino/ProtHash-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 2048 | 512 | 16/4 | 4 | 12M |
+| Name | Context Length | Embedding Dimensionality | Attention Heads (Q/KV) | Encoder Layers  | Total Params | Teacher Model | Teacher Dimensionality |
+|---|---|---|---|---|---|---|---|
+| [andrewdalpino/ProtHash-384-Tiny](https://huggingface.co/andrewdalpino/ProtHash-384-Tiny) | 2048 | 384 | 16/4 | 4 | 7M | esmc_300m | 960 |
+| [andrewdalpino/ProtHash-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 2048 | 512 | 16/4 | 4 | 13M | esmc_600m | 1152 |
 
 ## Pretrained Example
 
@@ -25,7 +25,7 @@ First, you'll need the `prothash` and `esm` packages installed into your environ
 pip install prothash esm
 ```
 
-Then, load the weights from HuggingFace Hub, tokenize a protein sequence, and pass it to the model. ProtHash adopts the ESM tokenizer as it's amino acids tokenization scheme. The output will be an embedding vector that can be used in downstream tasks such as comparing to other protein sequence embeddings, clustering, and near-duplicate detection.
+Then, load the weights from HuggingFace Hub, tokenize a protein sequence, and pass it to the model. ProtHash adopts the ESM tokenizer as it's amino acids tokenization scheme which consists of a vocabulary of 33 amino acid and special tokens. The output will be an embedding vector that can be used in downstream tasks such as comparing to other protein sequence embeddings, clustering, and near-duplicate detection.
 
 ```python
 import torch
@@ -46,11 +46,18 @@ out = tokenizer(sequence, max_length=2048)
 
 tokens = out["input_ids"]
 
+# Input is a [1, T] tensor of token indices. 
 x = torch.tensor(tokens, dtype=torch.int64).unsqueeze(0)
 
-y_embed = model.embed(x)
+# Output the sequence embedding in native dimensionality.
+y_embed_native = model.embed_native(x).squeeze(0)
 
-print(y_embed)
+print(y_embed_native.shape)
+
+# Output a drop-in replacement for the teacher's embeddings.
+y_embed_teacher = model.embed_teacher(x).squeeze(0)
+
+print(y_embed_teacher.shape)
 ```
 
 ## References

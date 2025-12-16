@@ -22,6 +22,14 @@ from torch.nn.functional import scaled_dot_product_attention
 from torch.nn.utils.parametrize import register_parametrization, remove_parametrizations
 from torch.utils.checkpoint import checkpoint as torch_checkpoint
 
+from torchao.quantization import Int8WeightOnlyConfig, quantize_
+
+from torchao.quantization.qat import (
+    FakeQuantizeConfig,
+    IntXQuantizationAwareTrainingConfig,
+    FromIntXQuantizationAwareTrainingConfig,
+)
+
 from huggingface_hub import PyTorchModelHubMixin
 
 
@@ -35,6 +43,7 @@ class ProtHash(Module, PyTorchModelHubMixin):
         vocabulary_size: int,
         padding_index: int,
         context_length: int,
+        teacher_dimensions: int,
         embedding_dimensions: int,
         q_heads: int,
         kv_heads: int,
@@ -59,11 +68,17 @@ class ProtHash(Module, PyTorchModelHubMixin):
             dropout=dropout,
         )
 
-        self.head = Identity()
+        if embedding_dimensions != teacher_dimensions:
+            head = AdapterHead(embedding_dimensions, teacher_dimensions)
+        else:
+            head = Identity()
+
+        self.head = head
 
         self.vocabulary_size = vocabulary_size
         self.padding_index = padding_index
         self.context_length = context_length
+        self.teacher_dimensions = teacher_dimensions
         self.embedding_dimensions = embedding_dimensions
 
     @property
@@ -73,16 +88,6 @@ class ProtHash(Module, PyTorchModelHubMixin):
     @property
     def num_trainable_parameters(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
-
-    def add_adapter_head(self, out_dimensions: int) -> None:
-        """Add an adapter head to the model for adapting to the teacher's embedding dimensionality."""
-
-        self.head = AdapterHead(self.embedding_dimensions, out_dimensions)
-
-    def remove_adapter_head(self) -> None:
-        """Remove the adapter head from the model."""
-
-        self.head = Identity()
 
     def add_lora_adapters(self, rank: int, alpha: float) -> None:
         """Reparameterize the weights of the model using LoRA adapters."""
@@ -106,6 +111,33 @@ class ProtHash(Module, PyTorchModelHubMixin):
             for name in lora_params:
                 remove_parametrizations(module, name)
 
+    def add_fake_quantized_tensors(self, group_size: int) -> None:
+        """Prepare the model for quantization-aware training."""
+
+        assert group_size % self.embedding_dimensions == 0, "Invalid quant group size."
+
+        weight_config = FakeQuantizeConfig(torch.int8, group_size=group_size)
+
+        config = IntXQuantizationAwareTrainingConfig(weight_config=weight_config)
+
+        quantize_(self, config)
+
+    def remove_fake_quantized_tensors(self) -> None:
+        """Convert fake quantized tensors back to regular tensors."""
+
+        config = FromIntXQuantizationAwareTrainingConfig()
+
+        quantize_(self, config)
+
+    def quantize_weights(self, group_size: int) -> None:
+        """Quantize the weights of the model."""
+
+        assert group_size % self.embedding_dimensions == 0, "Invalid quant group size."
+
+        config = Int8WeightOnlyConfig(group_size=group_size)
+
+        quantize_(self, config)
+
     def forward(self, x: Tensor) -> Tensor:
         """
         Args:
@@ -128,14 +160,20 @@ class ProtHash(Module, PyTorchModelHubMixin):
         z = z_tok + z_pos
 
         z = self.encoder.forward(z)
+
+        return z
+
+    def forward_with_adapter(self, x: Tensor) -> Tensor:
+        z = self.forward(x)
+
         z = self.head.forward(z)
 
         return z
 
     @torch.inference_mode()
-    def embed(self, x: Tensor) -> Tensor:
+    def embed_native(self, x: Tensor) -> Tensor:
         """
-        Output the contextual embeddings of the input sequence.
+        Output the contextual embeddings of the input sequence in native dimensionality.
 
         Args:
             x (Tensor): The token index sequence of shape (batch_size, sequence_length).
@@ -145,6 +183,25 @@ class ProtHash(Module, PyTorchModelHubMixin):
         """
 
         z = self.forward(x)
+
+        # Grab the classification token <CLS> vectors.
+        z = z[:, 0, :]
+
+        return z
+
+    @torch.inference_mode()
+    def embed_teacher(self, x: Tensor) -> Tensor:
+        """
+        Output the contextual embeddings of the input sequence in the teacher's dimensionality.
+
+        Args:
+            x (Tensor): The token index sequence of shape (batch_size, sequence_length).
+
+        Returns:
+            Tensor: The contextual embeddings of shape (batch_size, teacher_dimensions).
+        """
+
+        z = self.forward_with_adapter(x)
 
         # Grab the classification token <CLS> vectors.
         z = z[:, 0, :]
@@ -161,7 +218,7 @@ class ONNXModel(Module):
         self.model = model
 
     def forward(self, x: Tensor) -> Tensor:
-        return self.model.embed(x)
+        return self.model.embed_native(x)
 
 
 class Encoder(Module):
@@ -388,7 +445,7 @@ class AdapterHead(Module):
     def __init__(self, in_dimensions: int, out_dimensions: int):
         super().__init__()
 
-        self.linear = Linear(in_dimensions, out_dimensions, bias=True)
+        self.linear = Linear(in_dimensions, out_dimensions, bias=False)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.linear(x)

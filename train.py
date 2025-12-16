@@ -25,21 +25,27 @@ from loss import DistillationLoss
 
 from tqdm import tqdm
 
+AVAILABLE_TEACHERS = {"esmc_300m", "esmc_600m"}
+
 
 def main():
     parser = ArgumentParser(
         description="Distill a larger ESMC model into a smaller one."
     )
 
-    parser.add_argument("--teacher_model_name", type=str, default="esmc_600m")
+    parser.add_argument(
+        "--teacher_name", choices=AVAILABLE_TEACHERS, default="esmc_600m"
+    )
     parser.add_argument("--num_dataset_processes", default=1, type=int)
     parser.add_argument("--min_sequence_length", default=1, type=int)
     parser.add_argument("--max_sequence_length", default=2048, type=int)
+    parser.add_argument("--quantization_aware_training", action="store_true")
+    parser.add_argument("--quant_group_size", default=192, type=int)
     parser.add_argument("--learning_rate", default=1e-4, type=float)
     parser.add_argument("--max_gradient_norm", default=100.0, type=float)
-    parser.add_argument("--temperature", default=4.0, type=float)
-    parser.add_argument("--batch_size", default=8, type=int)
-    parser.add_argument("--gradient_accumulation_steps", default=16, type=int)
+    parser.add_argument("--temperature", default=8.0, type=float)
+    parser.add_argument("--batch_size", default=4, type=int)
+    parser.add_argument("--gradient_accumulation_steps", default=32, type=int)
     parser.add_argument("--max_steps", default=3000, type=int)
     parser.add_argument("--embedding_dimensions", default=512, type=int)
     parser.add_argument("--q_heads", default=16, type=int)
@@ -139,7 +145,7 @@ def main():
     print(f"Training samples: {len(training):,}")
     print(f"Testing samples: {len(testing):,}")
 
-    teacher = ESMC.from_pretrained(args.teacher_model_name)
+    teacher = ESMC.from_pretrained(args.teacher_name)
 
     # Freeze teacher model parameters.
     for module in teacher.modules():
@@ -156,6 +162,7 @@ def main():
         "vocabulary_size": tokenizer.vocab_size,
         "padding_index": tokenizer.pad_token_id,
         "context_length": args.max_sequence_length,
+        "teacher_dimensions": teacher.embed.embedding_dim,
         "embedding_dimensions": args.embedding_dimensions,
         "q_heads": args.q_heads,
         "kv_heads": args.kv_heads,
@@ -166,8 +173,8 @@ def main():
 
     student = ProtHash(**model_args)
 
-    if args.embedding_dimensions != teacher.embed.embedding_dim:
-        student.add_adapter_head(teacher.embed.embedding_dim)
+    if args.quantization_aware_training:
+        student.add_fake_quantized_tensors(args.quant_group_size)
 
     student = student.to(args.device)
 
@@ -217,7 +224,7 @@ def main():
 
                 y_teacher = out_teacher.hidden_states[-1]
 
-            y_student = student.forward(x)
+            y_student = student.forward_with_adapter(x)
 
             loss = loss_function.forward(y_student, y_teacher)
 
@@ -262,7 +269,7 @@ def main():
                         out_teacher = teacher.forward(x)
                         y_teacher = out_teacher.hidden_states[-1][:, 0, :]
 
-                    y_student = student.embed(x)
+                    y_student = student.embed_teacher(x)
 
                     cosine_similarity_metric.update(y_student, y_teacher)
 
@@ -281,7 +288,6 @@ def main():
             if step % args.checkpoint_interval == 0:
                 checkpoint = {
                     "step": step,
-                    "teacher_embedding_dimensions": teacher.embed.embedding_dim,
                     "model_args": model_args,
                     "model": student.state_dict(),
                     "optimizer": optimizer.state_dict(),
