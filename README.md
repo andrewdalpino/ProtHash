@@ -4,7 +4,7 @@ A protein language model that outputs amino acid sequence embeddings for use in 
 
 ## Key Features
 
-- **Blazing fast and efficient**: ProtHash uses less than 1.5% of its ESMC teacher's total parameters to achieve near perfect cosine similarity between the two embedding spaces.
+- **Blazing fast and efficient**: ProtHash uses less than 1.5% of its ESMC teacher's total parameters to achieve near-perfect cosine similarity between the two embedding spaces.
 
 - **Structurally-relevant embeddings**: Structurally similar proteins will show up nearby in the embedding space enabling downstream tasks such as clustering, classification, and locality-sensitive hashing based on atomic structure.
 
@@ -16,6 +16,7 @@ A protein language model that outputs amino acid sequence embeddings for use in 
 |---|---|---|---|---|---|---|---|
 | [andrewdalpino/ProtHash-384-Tiny](https://huggingface.co/andrewdalpino/ProtHash-384-Tiny) | 2048 | 384 | 16/4 | 4 | 5M | esmc_300m | 960 |
 | [andrewdalpino/ProtHash-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 2048 | 512 | 16/4 | 4 | 8.5M | esmc_600m | 1152 |
+| [andrewdalpino/ProtHash-512](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 2048 | 512 | 16/4 | 10 | 19M | esmc_600m | 1152 |
 
 ## Pretrained Example
 
