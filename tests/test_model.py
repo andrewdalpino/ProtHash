@@ -140,7 +140,7 @@ class TestSelfAttention(unittest.TestCase):
     def test_forward_shape_preservation(self):
         """Test that SelfAttention preserves input shape."""
         sa = model.SelfAttention(
-            embedding_dimensions=8, q_heads=2, kv_heads=1, dropout=0.0
+            context_length=16, embedding_dimensions=8, q_heads=2, kv_heads=1, dropout=0.0
         )
         x = torch.randn(3, 5, 8)
         out = sa.forward(x)
@@ -150,7 +150,7 @@ class TestSelfAttention(unittest.TestCase):
     def test_multi_head_attention(self):
         """Test multi-head attention with equal q and kv heads."""
         sa = model.SelfAttention(
-            embedding_dimensions=16, q_heads=4, kv_heads=4, dropout=0.0
+            context_length=16, embedding_dimensions=16, q_heads=4, kv_heads=4, dropout=0.0
         )
         x = torch.randn(2, 10, 16)
         out = sa.forward(x)
@@ -160,7 +160,7 @@ class TestSelfAttention(unittest.TestCase):
     def test_grouped_query_attention(self):
         """Test grouped query attention (q_heads > kv_heads)."""
         sa = model.SelfAttention(
-            embedding_dimensions=8, q_heads=4, kv_heads=2, dropout=0.0
+            context_length=16, embedding_dimensions=8, q_heads=4, kv_heads=2, dropout=0.0
         )
         x = torch.randn(2, 6, 8)
         out = sa.forward(x)
@@ -172,20 +172,20 @@ class TestSelfAttention(unittest.TestCase):
         """Test that non-divisible embedding dimensions raise assertion error."""
         with self.assertRaises(AssertionError):
             model.SelfAttention(
-                embedding_dimensions=7, q_heads=3, kv_heads=1, dropout=0.0
+                context_length=16, embedding_dimensions=7, q_heads=3, kv_heads=1, dropout=0.0
             )
 
     def test_invalid_head_relationship(self):
         """Test that q_heads < kv_heads raises assertion error."""
         with self.assertRaises(AssertionError):
             model.SelfAttention(
-                embedding_dimensions=8, q_heads=1, kv_heads=2, dropout=0.0
+                context_length=16, embedding_dimensions=8, q_heads=1, kv_heads=2, dropout=0.0
             )
 
     def test_add_lora_adapters(self):
         """Test adding LoRA adapters to SelfAttention."""
         sa = model.SelfAttention(
-            embedding_dimensions=8, q_heads=2, kv_heads=1, dropout=0.0
+            context_length=16, embedding_dimensions=8, q_heads=2, kv_heads=1, dropout=0.0
         )
         sa.add_lora_adapters(rank=2, alpha=1.0)
 
@@ -205,7 +205,7 @@ class TestEncoderBlock(unittest.TestCase):
     def test_forward_shape_preservation(self):
         """Test that EncoderBlock preserves input shape."""
         block = model.EncoderBlock(
-            embedding_dimensions=8, q_heads=2, kv_heads=1, hidden_ratio=2, dropout=0.0
+            context_length=16, embedding_dimensions=8, q_heads=2, kv_heads=1, hidden_ratio=2, dropout=0.0
         )
         x = torch.randn(2, 4, 8)
         out = block.forward(x)
@@ -215,7 +215,7 @@ class TestEncoderBlock(unittest.TestCase):
     def test_residual_connections(self):
         """Test that residual connections are working."""
         block = model.EncoderBlock(
-            embedding_dimensions=8, q_heads=2, kv_heads=1, hidden_ratio=1, dropout=0.0
+            context_length=16, embedding_dimensions=8, q_heads=2, kv_heads=1, hidden_ratio=1, dropout=0.0
         )
         x = torch.randn(2, 4, 8)
         out = block.forward(x)
@@ -226,7 +226,7 @@ class TestEncoderBlock(unittest.TestCase):
     def test_add_lora_adapters(self):
         """Test adding LoRA adapters to EncoderBlock."""
         block = model.EncoderBlock(
-            embedding_dimensions=8, q_heads=2, kv_heads=1, hidden_ratio=2, dropout=0.0
+            context_length=16, embedding_dimensions=8, q_heads=2, kv_heads=1, hidden_ratio=2, dropout=0.0
         )
         block.add_lora_adapters(rank=2, alpha=1.0)
 
@@ -244,6 +244,7 @@ class TestEncoder(unittest.TestCase):
     def test_forward_shape_preservation(self):
         """Test that Encoder preserves input shape."""
         enc = model.Encoder(
+            context_length=16,
             embedding_dimensions=8,
             q_heads=2,
             kv_heads=1,
@@ -259,6 +260,7 @@ class TestEncoder(unittest.TestCase):
     def test_single_layer(self):
         """Test Encoder with single layer."""
         enc = model.Encoder(
+            context_length=16,
             embedding_dimensions=8,
             q_heads=2,
             kv_heads=1,
@@ -276,6 +278,7 @@ class TestEncoder(unittest.TestCase):
         """Test that zero layers raises assertion error."""
         with self.assertRaises(AssertionError):
             model.Encoder(
+                context_length=16,
                 embedding_dimensions=8,
                 q_heads=2,
                 kv_heads=1,
@@ -287,6 +290,7 @@ class TestEncoder(unittest.TestCase):
     def test_enable_activation_checkpointing(self):
         """Test enabling activation checkpointing."""
         enc = model.Encoder(
+            context_length=16,
             embedding_dimensions=8,
             q_heads=2,
             kv_heads=1,
@@ -302,6 +306,7 @@ class TestEncoder(unittest.TestCase):
     def test_add_lora_adapters(self):
         """Test adding LoRA adapters to all encoder layers."""
         enc = model.Encoder(
+            context_length=16,
             embedding_dimensions=8,
             q_heads=2,
             kv_heads=1,
