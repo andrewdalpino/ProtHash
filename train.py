@@ -40,7 +40,6 @@ def main():
     parser.add_argument("--min_sequence_length", default=1, type=int)
     parser.add_argument("--max_sequence_length", default=2048, type=int)
     parser.add_argument("--quantization_aware_training", action="store_true")
-    parser.add_argument("--quant_group_size", default=192, type=int)
     parser.add_argument("--learning_rate", default=1e-4, type=float)
     parser.add_argument("--max_gradient_norm", default=100.0, type=float)
     parser.add_argument("--temperature", default=8.0, type=float)
@@ -174,7 +173,7 @@ def main():
     student = ProtHash(**model_args)
 
     if args.quantization_aware_training:
-        student.add_fake_quantized_tensors(args.quant_group_size)
+        student.add_fake_quantized_tensors()
 
     student = student.to(args.device)
 

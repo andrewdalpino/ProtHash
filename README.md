@@ -1,6 +1,6 @@
-# ProtHash
+# ESM ProtHash
 
-A protein language model that outputs amino acid sequence embeddings for use in clustering, classification, locality-sensitive hashing, and more. Distilled from the [ESMC](https://www.evolutionaryscale.ai/blog/esm-cambrian) family of models with deep comprehension of protein structure, ProtHash produces contextual embeddings that align in vector space according to the sequences' atomic structure. Trained on the [SwissProt](https://huggingface.co/datasets/andrewdalpino/SwissProt-Gene-Ontology) dataset to mimic the activations of its ESMC teacher model, ProtHash embeddings have near perfect similarity to ESMC embeddings but at a greatly reduced computational cost.
+A protein language model that outputs amino acid sequence embeddings for use in clustering, classification, locality-sensitive hashing, and more. Distilled from the [ESMC](https://www.evolutionaryscale.ai/blog/esm-cambrian) family of models with deep comprehension of protein structure, ProtHash produces contextual embeddings that align in vector space according to the sequences' atomic structure. Trained on the [SwissProt](https://huggingface.co/datasets/andrewdalpino/SwissProt-Gene-Ontology) dataset to mimic the activations of its ESMC teacher model, ProtHash embeddings have near-perfect similarity to ESMC embeddings but at a greatly reduced computational cost.
 
 ## Key Features
 
@@ -8,9 +8,9 @@ A protein language model that outputs amino acid sequence embeddings for use in 
 
 - **Structurally-relevant**: Structurally similar proteins will show up nearby in the embedding space enabling downstream tasks such as clustering, classification, and locality-sensitive hashing based on atomic structure.
 
-- **Compatible with ESMC**: ProtHash can output embeddings in its native or ESMC teacher's dimensionality - allowing it to serve as both a faster drop-in replacement for ESMC embeddings and a more efficient compressed representation.
+- **Compatible with ESMC**: ProtHash can output embeddings in its native or ESMC teacher's dimensionality - allowing it to serve as either a faster drop-in approximation to ESMC embeddings or a more efficient compressed representation.
 
-- **Quantization-ready**: With quantization-aware post-training, ProtHash allows you to quantize the weights of the model without losing similarity to the teacher's embedding space.
+- **Quantization-ready**: With quantization-aware post-training, ProtHash allows you to quantize the weights of the model while maintaining similarity to the teacher's embedding space.
 
 ## Pretrained Models
 
@@ -44,6 +44,9 @@ model_name = "andrewdalpino/ProtHash-512-Tiny"
 
 model = ProtHash.from_pretrained(model_name)
 
+# Optionally quantize the weights.
+model.quantize_weights()
+
 sequence = input("Enter a sequence: ")
 
 out = tokenizer(sequence, max_length=2048)
@@ -56,11 +59,10 @@ x = torch.tensor(tokens, dtype=torch.int64).unsqueeze(0)
 # Output the sequence embedding in native dimensionality.
 y_embed_native = model.embed_native(x).squeeze(0)
 
-print(y_embed_native.shape)
-
 # Output a drop-in replacement for the teacher's embeddings.
 y_embed_teacher = model.embed_teacher(x).squeeze(0)
 
+print(y_embed_native.shape)
 print(y_embed_teacher.shape)
 ```
 
