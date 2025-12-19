@@ -89,6 +89,13 @@ class ProtHash(Module, PyTorchModelHubMixin):
     def num_trainable_parameters(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
+    def freeze_weights(self) -> None:
+        """Freeze all model parameters."""
+
+        for module in self.modules():
+            for param in module.parameters():
+                param.requires_grad = False
+
     def add_lora_adapters(self, rank: int, alpha: float) -> None:
         """Reparameterize the weights of the model using LoRA adapters."""
 
