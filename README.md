@@ -17,6 +17,7 @@ A protein language model that outputs amino acid sequence embeddings for use in 
 | Name | Context Length | Embedding Dimensionality | Attention Heads (Q/KV) | Encoder Layers  | Total Params | Teacher Model | Teacher Dimensionality |
 |---|---|---|---|---|---|---|---|
 | [andrewdalpino/ProtHash-384-Tiny](https://huggingface.co/andrewdalpino/ProtHash-384-Tiny) | 2048 | 384 | 16/4 | 4 | 5M | esmc_300m | 960 |
+| [andrewdalpino/ProtHash-384](https://huggingface.co/andrewdalpino/ProtHash-384) | 2048 | 384 | 16/4 | 10 | 11M | esmc_300m | 960 |
 | [andrewdalpino/ProtHash-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 2048 | 512 | 16/4 | 4 | 8.5M | esmc_600m | 1152 |
 | [andrewdalpino/ProtHash-512](https://huggingface.co/andrewdalpino/ProtHash-512) | 2048 | 512 | 16/4 | 10 | 19M | esmc_600m | 1152 |
 
