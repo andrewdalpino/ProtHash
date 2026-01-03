@@ -1,22 +1,25 @@
-# ProtHash
+# ESMC ProtHash
 
-A protein language model that outputs amino acid sequence embeddings for use in clustering, classification, locality-sensitive hashing, and more. Distilled from the [ESMC](https://www.evolutionaryscale.ai/blog/esm-cambrian) family of models with deep comprehension of protein structure, ProtHash produces contextual embeddings that align in vector space according to the sequences' atomic structure. Trained on the [SwissProt](https://huggingface.co/datasets/andrewdalpino/SwissProt-Gene-Ontology) dataset to mimic the activations of its ESMC teacher model, ProtHash embeddings have near perfect similarity to ESMC embeddings but at a greatly reduced computational cost.
+A protein language model that outputs amino acid sequence embeddings for use in clustering, classification, locality-sensitive hashing, and more. Distilled from the [ESMC](https://www.evolutionaryscale.ai/blog/esm-cambrian) family of models, ProtHash produces contextual embeddings that align in vector space according to the sequences' underlying biological properties such as structure and function. Trained on the [SwissProt](https://huggingface.co/datasets/andrewdalpino/SwissProt-Gene-Ontology) dataset to mimic the activations of its ESMC teacher model, ProtHash embeddings have near-perfect similarity to ESMC embeddings but at a greatly reduced computational cost.
 
 ## Key Features
 
-- **Blazing fast and efficient**: ProtHash uses less than 1.5% of its ESMC teacher's total parameters to achieve near-perfect cosine similarity between the two embedding spaces.
+- **Blazing fast and efficient**: ProtHash uses as few as 1.5% of its ESMC teacher's total parameters to achieve near-perfect cosine similarity between the two embedding spaces.
 
-- **Structurally-relevant embeddings**: Structurally similar proteins will show up nearby in the embedding space enabling downstream tasks such as clustering, classification, and locality-sensitive hashing based on atomic structure.
+- **Biologically-relevant**: Biologically similar proteins will show up nearby in the embedding space enabling downstream tasks such as clustering, classification, and locality-sensitive hashing.
 
-- **Compatible with ESMC embeddings**: ProtHash can output embeddings in its native or ESMC teacher's dimensionality - allowing it to serve as both a faster drop-in replacement for ESMC embeddings or a more efficient compressed representation.
+- **Compatible with ESMC**: ProtHash can output embeddings in its native or ESMC teacher's dimensionality - allowing it to serve as either a faster drop-in approximation to ESMC embeddings or a more efficient compressed representation.
+
+- **Quantization-ready**: With quantization-aware post-training, ProtHash allows you to quantize the weights of the model while maintaining similarity to the teacher's embedding space.
 
 ## Pretrained Models
 
-| Name | Context Length | Embedding Dimensionality | Attention Heads (Q/KV) | Encoder Layers  | Total Params | Teacher Model | Teacher Dimensionality |
-|---|---|---|---|---|---|---|---|
+| Name | Context Length | Embedding Dimensions | Attention Heads (Q/KV) | Encoder Layers  | Total Params | Teacher Model | Teacher Dimensions |
+| --- | --- | --- | --- | --- | --- | --- | --- |
 | [andrewdalpino/ProtHash-384-Tiny](https://huggingface.co/andrewdalpino/ProtHash-384-Tiny) | 2048 | 384 | 16/4 | 4 | 5M | esmc_300m | 960 |
+| [andrewdalpino/ProtHash-384](https://huggingface.co/andrewdalpino/ProtHash-384) | 2048 | 384 | 16/4 | 10 | 11M | esmc_300m | 960 |
 | [andrewdalpino/ProtHash-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 2048 | 512 | 16/4 | 4 | 8.5M | esmc_600m | 1152 |
-| [andrewdalpino/ProtHash-512](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 2048 | 512 | 16/4 | 10 | 19M | esmc_600m | 1152 |
+| [andrewdalpino/ProtHash-512](https://huggingface.co/andrewdalpino/ProtHash-512) | 2048 | 512 | 16/4 | 10 | 19M | esmc_600m | 1152 |
 
 ## Pretrained Example
 
@@ -41,6 +44,9 @@ model_name = "andrewdalpino/ProtHash-512-Tiny"
 
 model = ProtHash.from_pretrained(model_name)
 
+# Optionally quantize the weights.
+model.quantize_weights()
+
 sequence = input("Enter a sequence: ")
 
 out = tokenizer(sequence, max_length=2048)
@@ -53,13 +59,86 @@ x = torch.tensor(tokens, dtype=torch.int64).unsqueeze(0)
 # Output the sequence embedding in native dimensionality.
 y_embed_native = model.embed_native(x).squeeze(0)
 
-print(y_embed_native.shape)
-
 # Output a drop-in replacement for the teacher's embeddings.
 y_embed_teacher = model.embed_teacher(x).squeeze(0)
 
+print(y_embed_native.shape)
 print(y_embed_teacher.shape)
 ```
+
+## Training
+
+### Clone the project repo
+
+We'll need the code from the project repository to train and/or fine-tune the model.
+
+```sh
+git clone https://github.com/andrewdalpino/ProtHash
+```
+
+### Install Project Dependencies
+
+Project dependencies are specified in the requirements.txt file. You can install them with pip using the following command from the project root. We recommend using a virtual environment such as `venv` to keep package dependencies on your system tidy.
+
+python -m venv ./.venv
+
+source ./.venv/bin/activate
+
+pip install -r requirements.txt
+
+### Distilling
+
+ProtHash is trained to mimic the activations of its ESMC teacher model. To begin distillation with the default arguments check the example below.
+
+```sh
+python train.py
+```
+
+You can change the default arguments like in the example below.
+
+```sh
+python train --teacher_name="esmc_300m" --max_steps=3500 --embedding_dimensions=256
+```
+
+#### Training Dashboard
+
+We use [TensorBoard](https://www.tensorflow.org/tensorboard) to capture and display training events such as loss and gradient norm updates. To launch the dashboard server run the following command from the terminal.
+
+```sh
+tensorboard --logdir=./runs
+```
+
+Then navigate to the dashboard using your favorite web browser.
+
+#### Training Arguments
+
+| Argument | Default | Type | Description |
+|---|---|---|---|
+| --teacher_name | 'esmc_600m' | str | The teacher model name. |
+| --num_dataset_processes | 1 | int | The number of CPU processes to use to preprocess the dataset. |
+| --min_sequence_length | 1 | int | The minimum length of the input sequences. |
+| --max_sequence_length | 2048 | int | The maximum length of the input sequences. |
+| --quantization_aware_training | False | bool | Should we add fake quantized tensors to simulate quantized training? |
+| --batch_size | 4 | int | The number of training images to pass through the network at a time. |
+| --gradient_accumulation_steps | 32 | int | The number of batches to pass through the network before updating the model weights. |
+| --max_steps | 4200 | int | The number of steps to train for. |
+| --learning_rate | 1e-4 | float | The learning rate of the AdamW optimizer. |
+| --max_gradient_norm | 100.0 | float | Clip gradients above this threshold norm before stepping. |
+| --temperature | 8.0 | float | The smoothing parameter of the activations - higher temperature results in smoother activations. |
+| --embeddings_dimensions | 512 | int | The dimensionality of the native embeddings. |
+| --q_heads | 16 | int | The number of query heads used in the self-attention layers. |
+| --kv_heads | 4 | int | The number of key and value heads used in the self-attention layers. |
+| --hidden_ratio | 2 | (1, 2, 4) | The ratio of hidden neurons to embedding dimensions in the feed-forward layers of the network.|
+| --num_encoder_layers | 4 | int | The number of layers within the body of the encoder. |
+| --dropout | 0.0 | float | The proportion of activations to send to zero during training as regularization. |
+| --activation_checkpointing | False | bool | Should we use activation checkpointing? This will drastically reduce memory utilization during training at the cost of recomputing the forward pass. |
+| --eval_interval | 100 | int | Evaluate the model after this many epochs on the testing set. |
+| --checkpoint_interval | 100 | int | Save the model checkpoint to disk every this many epochs. |
+| --checkpoint_path | "./checkpoints/checkpoint.pt" | str | The path to the base checkpoint file on disk. |
+| --resume | False | bool | Should we resume training from the last checkpoint? |
+| --run_dir_path | "./runs" | str | The path to the TensorBoard run directory for this training session. |
+| --device | "cpu" | str | The device to run the computation on. |
+| --seed | None | int | The seed for the random number generator. |
 
 ## References
 

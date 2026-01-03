@@ -26,8 +26,8 @@ from torch.utils.checkpoint import checkpoint as torch_checkpoint
 from torchao.quantization import Int8WeightOnlyConfig, quantize_
 
 from torchao.quantization.qat import (
-    FakeQuantizeConfig,
-    IntXQuantizationAwareTrainingConfig,
+    IntxFakeQuantizeConfig,
+    QATConfig,
     FromIntXQuantizationAwareTrainingConfig,
 )
 
@@ -89,10 +89,20 @@ class ProtHash(Module, PyTorchModelHubMixin):
     def num_trainable_parameters(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
+    def freeze_weights(self) -> None:
+        """Freeze all model parameters."""
+
+        for module in self.modules():
+            for param in module.parameters():
+                param.requires_grad = False
+
     def add_lora_adapters(self, rank: int, alpha: float) -> None:
         """Reparameterize the weights of the model using LoRA adapters."""
 
         self.encoder.add_lora_adapters(rank, alpha)
+
+        if isinstance(self.head, AdapterHead):
+            self.head.add_lora_adapters(rank, alpha)
 
     def merge_lora_adapters(self) -> None:
         """Merge the LoRA adapters with the original parameters."""
@@ -111,32 +121,20 @@ class ProtHash(Module, PyTorchModelHubMixin):
             for name in lora_params:
                 remove_parametrizations(module, name)
 
-    def add_fake_quantized_tensors(self, group_size: int) -> None:
+    def add_fake_quantized_tensors(self) -> None:
         """Prepare the model for quantization-aware training."""
 
-        assert group_size % self.embedding_dimensions == 0, "Invalid quant group size."
-
-        weight_config = FakeQuantizeConfig(torch.int8, group_size=group_size)
-
-        config = IntXQuantizationAwareTrainingConfig(weight_config=weight_config)
-
-        quantize_(self, config)
+        self.encoder.add_fake_quantized_tensors()
 
     def remove_fake_quantized_tensors(self) -> None:
         """Convert fake quantized tensors back to regular tensors."""
 
-        config = FromIntXQuantizationAwareTrainingConfig()
+        self.encoder.remove_fake_quantized_tensors()
 
-        quantize_(self, config)
-
-    def quantize_weights(self, group_size: int) -> None:
+    def quantize_weights(self) -> None:
         """Quantize the weights of the model."""
 
-        assert group_size % self.embedding_dimensions == 0, "Invalid quant group size."
-
-        config = Int8WeightOnlyConfig(group_size=group_size)
-
-        quantize_(self, config)
+        self.encoder.quantize_weights()
 
     def forward(self, x: Tensor) -> Tensor:
         """
@@ -258,6 +256,24 @@ class Encoder(Module):
         for layer in self.layers:
             layer.add_lora_adapters(rank, alpha)
 
+    def add_fake_quantized_tensors(self) -> None:
+        """Prepare the model for quantization-aware training."""
+
+        for layer in self.layers:
+            layer.add_fake_quantized_tensors()
+
+    def remove_fake_quantized_tensors(self) -> None:
+        """Convert fake quantized tensors back to regular tensors."""
+
+        for layer in self.layers:
+            layer.remove_fake_quantized_tensors()
+
+    def quantize_weights(self) -> None:
+        """Quantize the weights of the model."""
+
+        for layer in self.layers:
+            layer.quantize_weights()
+
     def forward(self, x: Tensor) -> Tensor:
         for layer in self.layers:
             x = self.checkpoint(layer, x)
@@ -293,6 +309,24 @@ class EncoderBlock(Module):
 
         self.stage1.add_lora_adapters(rank, alpha)
         self.stage2.add_lora_adapters(rank, alpha)
+
+    def add_fake_quantized_tensors(self) -> None:
+        """Prepare the model for quantization-aware training."""
+
+        self.stage1.add_fake_quantized_tensors()
+        self.stage2.add_fake_quantized_tensors(self.stage1.head_dimensions)
+
+    def remove_fake_quantized_tensors(self) -> None:
+        """Convert fake quantized tensors back to regular tensors."""
+
+        self.stage1.remove_fake_quantized_tensors()
+        self.stage2.remove_fake_quantized_tensors()
+
+    def quantize_weights(self) -> None:
+        """Quantize the weights of the model."""
+
+        self.stage1.quantize_weights()
+        self.stage2.quantize_weights(self.stage1.head_dimensions)
 
     def forward(self, x: Tensor) -> Tensor:
         z = self.norm1.forward(x)
@@ -375,6 +409,31 @@ class SelfAttention(Module):
         register_parametrization(
             self.out_proj, "weight", LoRA.from_linear(self.out_proj, rank, alpha)
         )
+
+    def add_fake_quantized_tensors(self) -> None:
+        """Prepare the model for quantization-aware training."""
+
+        weight_config = IntxFakeQuantizeConfig(
+            torch.int8, group_size=self.head_dimensions
+        )
+
+        config = QATConfig(weight_config=weight_config)
+
+        quantize_(self, config)
+
+    def remove_fake_quantized_tensors(self) -> None:
+        """Convert fake quantized tensors back to regular tensors."""
+
+        config = FromIntXQuantizationAwareTrainingConfig()
+
+        quantize_(self, config)
+
+    def quantize_weights(self) -> None:
+        """Quantize the weights of the model."""
+
+        config = Int8WeightOnlyConfig(group_size=self.head_dimensions)
+
+        quantize_(self, config)
 
     def forward(self, x: Tensor) -> Tensor:
         b, t, d = x.size()
@@ -476,6 +535,8 @@ class InvertedBottleneck(Module):
 
         self.dropout = Dropout1d(p=dropout)
 
+        self.hidden_dimensions = hidden_dimensions
+
     def add_lora_adapters(self, rank: int, alpha: float) -> None:
         """Reparameterize the weights of the feedforward module using LoRA adapters."""
 
@@ -486,6 +547,29 @@ class InvertedBottleneck(Module):
         register_parametrization(
             self.linear2, "weight", LoRA.from_linear(self.linear2, rank, alpha)
         )
+
+    def add_fake_quantized_tensors(self, group_size: int) -> None:
+        """Prepare the model for quantization-aware training."""
+
+        weight_config = IntxFakeQuantizeConfig(torch.int8, group_size=group_size)
+
+        config = QATConfig(weight_config=weight_config)
+
+        quantize_(self, config)
+
+    def remove_fake_quantized_tensors(self) -> None:
+        """Convert fake quantized tensors back to regular tensors."""
+
+        config = FromIntXQuantizationAwareTrainingConfig()
+
+        quantize_(self, config)
+
+    def quantize_weights(self, group_size: int) -> None:
+        """Quantize the weights of the model."""
+
+        config = Int8WeightOnlyConfig(group_size=group_size)
+
+        quantize_(self, config)
 
     def forward(self, x: Tensor) -> Tensor:
         z = self.linear1.forward(x)
@@ -503,6 +587,13 @@ class AdapterHead(Module):
         super().__init__()
 
         self.linear = Linear(in_dimensions, out_dimensions, bias=False)
+
+    def add_lora_adapters(self, rank: int, alpha: float) -> None:
+        """Reparameterize the weights of the feedforward module using LoRA adapters."""
+
+        register_parametrization(
+            self.linear, "weight", LoRA.from_linear(self.linear, rank, alpha)
+        )
 
     def forward(self, x: Tensor) -> Tensor:
         return self.linear(x)

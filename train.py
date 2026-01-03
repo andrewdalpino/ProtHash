@@ -40,19 +40,18 @@ def main():
     parser.add_argument("--min_sequence_length", default=1, type=int)
     parser.add_argument("--max_sequence_length", default=2048, type=int)
     parser.add_argument("--quantization_aware_training", action="store_true")
-    parser.add_argument("--quant_group_size", default=192, type=int)
     parser.add_argument("--learning_rate", default=1e-4, type=float)
     parser.add_argument("--max_gradient_norm", default=100.0, type=float)
     parser.add_argument("--temperature", default=8.0, type=float)
     parser.add_argument("--batch_size", default=4, type=int)
     parser.add_argument("--gradient_accumulation_steps", default=32, type=int)
-    parser.add_argument("--max_steps", default=3000, type=int)
+    parser.add_argument("--max_steps", default=3500, type=int)
     parser.add_argument("--embedding_dimensions", default=512, type=int)
     parser.add_argument("--q_heads", default=16, type=int)
     parser.add_argument("--kv_heads", default=4, type=int)
     parser.add_argument("--hidden_ratio", default=2, type=int)
-    parser.add_argument("--dropout", default=0.0, type=float)
     parser.add_argument("--num_encoder_layers", default=4, type=int)
+    parser.add_argument("--dropout", default=0.0, type=float)
     parser.add_argument("--eval_interval", default=100, type=int)
     parser.add_argument("--test_ratio", default=0.01, type=float)
     parser.add_argument("--checkpoint_interval", default=100, type=int)
@@ -174,7 +173,7 @@ def main():
     student = ProtHash(**model_args)
 
     if args.quantization_aware_training:
-        student.add_fake_quantized_tensors(args.quant_group_size)
+        student.add_fake_quantized_tensors()
 
     student = student.to(args.device)
 
