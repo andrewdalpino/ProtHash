@@ -479,7 +479,7 @@ class RotaryPositionalEmbedding(Module):
         the model to effectively encode positional information across the full sequence.
         
         The base is calculated as:
-            base = ceil((context_length / (2π)) ^ (d / (d - 2)))
+            base = ceil((context_length / (2π)) ** (d / (d - 2)))
         
         where d is the head dimension. This formula is derived from the requirement that
         the largest wavelength (corresponding to the slowest-rotating frequency component)
@@ -497,7 +497,7 @@ class RotaryPositionalEmbedding(Module):
         exponent = head_dimensions / (head_dimensions - 2)
 
         base = (context_length / (2 * pi)) ** exponent
-        base = int(ceil(base))
+        base = ceil(base)
 
         return base
 
