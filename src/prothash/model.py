@@ -479,12 +479,14 @@ class RotaryPositionalEmbedding(Module):
         the model to effectively encode positional information across the full sequence.
         
         The base is calculated as:
-            base = ceil((context_length / (2π)) ** (d / (d - 2)))
+            base = ceil((context_length / (2 * pi)) ** (d / (d - 2)))
         
-        where d is the head dimension. This formula is derived from the requirement that
-        the largest wavelength (corresponding to the slowest-rotating frequency component)
-        should span approximately the context length, enabling the model to distinguish
-        positions throughout the entire sequence.
+        where d is the head dimension. The exponent d / (d - 2) is derived from the
+        constraint that pairs of dimensions are rotated together in RoPE, requiring
+        d to be even. This formula ensures that the largest wavelength (corresponding
+        to the slowest-rotating frequency component) spans approximately the context
+        length, enabling the model to distinguish positions throughout the entire
+        sequence.
         
         Args:
             context_length: Maximum sequence length the model can process.
