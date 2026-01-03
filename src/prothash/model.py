@@ -497,7 +497,7 @@ class RotaryPositionalEmbedding(Module):
 
         self.inv_freq = Buffer(inv_freq)
 
-    def forward(self, q: Tensor, k: Tensor) -> Tensor:
+    def forward(self, q: Tensor, k: Tensor) -> tuple[Tensor, Tensor]:
         b, h, t, d = q.size()
 
         position_ids = torch.arange(t).float().to(q.device)
