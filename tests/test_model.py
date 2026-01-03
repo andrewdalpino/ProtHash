@@ -160,9 +160,9 @@ class TestSelfAttention(unittest.TestCase):
     def test_grouped_query_attention(self):
         """Test grouped query attention (q_heads > kv_heads)."""
         sa = model.SelfAttention(
-            context_length=16, embedding_dimensions=8, q_heads=4, kv_heads=2, dropout=0.0
+            context_length=16, embedding_dimensions=16, q_heads=4, kv_heads=2, dropout=0.0
         )
-        x = torch.randn(2, 6, 8)
+        x = torch.randn(2, 6, 16)
         out = sa.forward(x)
 
         self.assertEqual(out.shape, x.shape)

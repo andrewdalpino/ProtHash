@@ -489,28 +489,24 @@ class RotaryPositionalEmbedding(Module):
 
         base = self.calculate_base(context_length, head_dimensions)
 
+        alpha = torch.arange(0, head_dimensions, 2).float()
+
         inv_freq = 1.0 / (
-            base ** (torch.arange(0, head_dimensions, 2).float() / head_dimensions)
+            base ** (alpha / head_dimensions)
         )
 
-        position_ids = torch.arange(context_length).float()
-
-        frequencies = torch.einsum("i , j -> i j", position_ids, inv_freq)
-        frequencies = torch.cat([frequencies, frequencies], dim=-1)
-
-        self.sine_frequencies = Buffer(frequencies.sin())
-        self.cosine_frequencies = Buffer(frequencies.cos())
+        self.inv_freq = Buffer(inv_freq)
 
     def forward(self, q: Tensor, k: Tensor) -> Tensor:
-        b, t, h, d = q.size()
+        b, h, t, d = q.size()
 
-        sine = self.sine_frequencies[:t, :].unsqueeze(0).unsqueeze(0)
-        cosine = self.cosine_frequencies[:t, :].unsqueeze(0).unsqueeze(0)
+        position_ids = torch.arange(t).float().to(q.device)
 
-        print(q.shape)
-        print(k.shape)
-        print(sine.shape)
-        print(cosine.shape)
+        frequencies = torch.einsum("i , j -> i j", position_ids, self.inv_freq)
+        frequencies = torch.cat([frequencies, frequencies], dim=-1)
+
+        sine = frequencies.sin().unsqueeze(0).unsqueeze(0)
+        cosine = frequencies.cos().unsqueeze(0).unsqueeze(0)
 
         q_hat = (q * cosine) + (self.rotate_half(q) * sine)
         k_hat = (k * cosine) + (self.rotate_half(k) * sine)
