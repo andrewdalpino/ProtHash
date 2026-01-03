@@ -131,6 +131,134 @@ class TestInvertedBottleneck(unittest.TestCase):
         self.assertTrue(hasattr(fb.linear2, "parametrizations"))
 
 
+class TestRotaryPositionalEmbedding(unittest.TestCase):
+    """Test cases for the RotaryPositionalEmbedding class."""
+
+    def setUp(self):
+        torch.manual_seed(42)
+
+    def test_calculate_base_basic(self):
+        """Test calculate_base with typical parameters."""
+        base = model.RotaryPositionalEmbedding.calculate_base(
+            context_length=512, head_dimensions=64
+        )
+        
+        # Base should be a positive integer
+        self.assertIsInstance(base, int)
+        self.assertGreater(base, 0)
+
+    def test_calculate_base_various_dimensions(self):
+        """Test calculate_base with various head dimensions."""
+        test_cases = [
+            (512, 32),   # Smaller head dim
+            (512, 64),   # Standard head dim
+            (512, 128),  # Larger head dim
+            (1024, 64),  # Longer context
+        ]
+        
+        for context_length, head_dim in test_cases:
+            base = model.RotaryPositionalEmbedding.calculate_base(
+                context_length, head_dim
+            )
+            self.assertIsInstance(base, int)
+            self.assertGreater(base, 0)
+
+    def test_rotate_half_shape_preservation(self):
+        """Test that rotate_half preserves tensor shape."""
+        x = torch.randn(2, 4, 8, 64)  # [batch, heads, seq, dim]
+        rotated = model.RotaryPositionalEmbedding.rotate_half(x)
+        
+        self.assertEqual(rotated.shape, x.shape)
+
+    def test_rotate_half_correctness(self):
+        """Test that rotate_half correctly rotates tensor halves."""
+        # Create a simple test case where we can verify the rotation
+        x = torch.tensor([[1.0, 2.0, 3.0, 4.0]])  # Shape: (1, 4)
+        rotated = model.RotaryPositionalEmbedding.rotate_half(x)
+        
+        # Expected: [-3.0, -4.0, 1.0, 2.0] (negate second half, swap)
+        expected = torch.tensor([[-3.0, -4.0, 1.0, 2.0]])
+        self.assertTrue(torch.allclose(rotated, expected))
+
+    def test_forward_shape_preservation(self):
+        """Test that forward pass preserves q and k shapes."""
+        rope = model.RotaryPositionalEmbedding(
+            context_length=16, head_dimensions=8
+        )
+        
+        q = torch.randn(2, 4, 10, 8)  # [batch, heads, seq, dim]
+        k = torch.randn(2, 4, 10, 8)
+        
+        q_hat, k_hat = rope.forward(q, k)
+        
+        self.assertEqual(q_hat.shape, q.shape)
+        self.assertEqual(k_hat.shape, k.shape)
+
+    def test_forward_modifies_tensors(self):
+        """Test that forward pass modifies q and k tensors."""
+        rope = model.RotaryPositionalEmbedding(
+            context_length=16, head_dimensions=8
+        )
+        
+        q = torch.randn(2, 4, 10, 8)
+        k = torch.randn(2, 4, 10, 8)
+        
+        q_hat, k_hat = rope.forward(q, k)
+        
+        # Rotary embeddings should modify the tensors
+        self.assertFalse(torch.allclose(q_hat, q))
+        self.assertFalse(torch.allclose(k_hat, k))
+
+    def test_forward_different_sequence_lengths(self):
+        """Test forward pass with various sequence lengths."""
+        rope = model.RotaryPositionalEmbedding(
+            context_length=32, head_dimensions=8
+        )
+        
+        for seq_len in [5, 10, 20, 32]:
+            q = torch.randn(1, 2, seq_len, 8)
+            k = torch.randn(1, 2, seq_len, 8)
+            
+            q_hat, k_hat = rope.forward(q, k)
+            
+            self.assertEqual(q_hat.shape, (1, 2, seq_len, 8))
+            self.assertEqual(k_hat.shape, (1, 2, seq_len, 8))
+
+    def test_forward_device_consistency(self):
+        """Test that forward pass works on the same device as input."""
+        rope = model.RotaryPositionalEmbedding(
+            context_length=16, head_dimensions=8
+        )
+        
+        q = torch.randn(1, 2, 10, 8)
+        k = torch.randn(1, 2, 10, 8)
+        
+        q_hat, k_hat = rope.forward(q, k)
+        
+        # All tensors should be on the same device
+        self.assertEqual(q_hat.device, q.device)
+        self.assertEqual(k_hat.device, k.device)
+
+    def test_position_encoding_uniqueness(self):
+        """Test that different positions receive different rotations."""
+        rope = model.RotaryPositionalEmbedding(
+            context_length=16, head_dimensions=8
+        )
+        
+        # Create identical values at different positions
+        q = torch.ones(1, 1, 5, 8)
+        k = torch.ones(1, 1, 5, 8)
+        
+        q_hat, k_hat = rope.forward(q, k)
+        
+        # Different positions should have different embeddings
+        # Check that not all positions are the same
+        for i in range(4):
+            self.assertFalse(
+                torch.allclose(q_hat[0, 0, i, :], q_hat[0, 0, i+1, :])
+            )
+
+
 class TestSelfAttention(unittest.TestCase):
     """Test cases for the SelfAttention class."""
 
