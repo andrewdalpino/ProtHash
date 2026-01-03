@@ -470,10 +470,36 @@ class RotaryPositionalEmbedding(Module):
 
     @staticmethod
     def calculate_base(context_length: int, head_dimensions: int) -> int:
+        """
+        Calculate the base value for inverse frequency computation in RoPE.
+        
+        This method computes a context-aware base that adapts to the sequence length
+        and dimensionality of the attention heads. The formula ensures that the maximum
+        wavelength of the rotary embeddings aligns with the context length, allowing
+        the model to effectively encode positional information across the full sequence.
+        
+        The base is calculated as:
+            base = ceil((context_length / (2 * pi)) ** (d / (d - 2)))
+        
+        where d is the head dimension. The exponent d / (d - 2) is derived from the
+        constraint that pairs of dimensions are rotated together in RoPE, requiring
+        d to be even. This formula ensures that the largest wavelength (corresponding
+        to the slowest-rotating frequency component) spans approximately the context
+        length, enabling the model to distinguish positions throughout the entire
+        sequence.
+        
+        Args:
+            context_length: Maximum sequence length the model can process.
+            head_dimensions: Dimensionality of each attention head.
+            
+        Returns:
+            The computed base value (as an integer) used for generating inverse frequencies
+            in the rotary positional embedding calculation.
+        """
         exponent = head_dimensions / (head_dimensions - 2)
 
         base = (context_length / (2 * pi)) ** exponent
-        base = int(ceil(base))
+        base = ceil(base)
 
         return base
 
