@@ -1,4 +1,4 @@
-from math import sqrt
+from math import sqrt, ceil, pi
 from functools import partial
 from typing import Self
 
@@ -16,6 +16,7 @@ from torch.nn import (
     Dropout1d,
     Identity,
     Parameter,
+    Buffer,
 )
 
 from torch.nn.functional import scaled_dot_product_attention
@@ -57,9 +58,8 @@ class ProtHash(Module, PyTorchModelHubMixin):
             vocabulary_size, embedding_dimensions, padding_idx=padding_index
         )
 
-        self.position_embeddings = Embedding(context_length, embedding_dimensions)
-
         self.encoder = Encoder(
+            context_length,
             embedding_dimensions,
             q_heads,
             kv_heads,
@@ -148,14 +148,7 @@ class ProtHash(Module, PyTorchModelHubMixin):
             t <= self.context_length
         ), f"Input sequence length {t} exceeds the maximum context length {self.context_length}."
 
-        z_tok = self.token_embeddings(x)
-
-        x_pos = torch.arange(t, dtype=torch.int64, device=x.device)
-        x_pos = x_pos.unsqueeze(0).expand(b, t)
-
-        z_pos = self.position_embeddings(x_pos)
-
-        z = z_tok + z_pos
+        z = self.token_embeddings.forward(x)
 
         z = self.encoder.forward(z)
 
@@ -224,6 +217,7 @@ class Encoder(Module):
 
     def __init__(
         self,
+        context_length: int,
         embedding_dimensions: int,
         q_heads: int,
         kv_heads: int,
@@ -238,6 +232,7 @@ class Encoder(Module):
         self.layers = ModuleList(
             [
                 EncoderBlock(
+                    context_length,
                     embedding_dimensions,
                     q_heads,
                     kv_heads,
@@ -291,6 +286,7 @@ class EncoderBlock(Module):
 
     def __init__(
         self,
+        context_length: int,
         embedding_dimensions: int,
         q_heads: int,
         kv_heads: int,
@@ -299,7 +295,10 @@ class EncoderBlock(Module):
     ):
         super().__init__()
 
-        self.stage1 = SelfAttention(embedding_dimensions, q_heads, kv_heads, dropout)
+        self.stage1 = SelfAttention(
+            context_length, embedding_dimensions, q_heads, kv_heads, dropout
+        )
+
         self.stage2 = InvertedBottleneck(embedding_dimensions, hidden_ratio, dropout)
 
         self.norm1 = RMSNorm(embedding_dimensions)
@@ -348,6 +347,7 @@ class SelfAttention(Module):
 
     def __init__(
         self,
+        context_length: int,
         embedding_dimensions: int,
         q_heads: int,
         kv_heads: int,
@@ -370,6 +370,8 @@ class SelfAttention(Module):
         head_dimensions = embedding_dimensions // q_heads
 
         kv_dimensions = kv_heads * head_dimensions
+
+        self.position_embeddings = RotaryPositionalEmbedding(context_length, head_dimensions)
 
         self.q_proj = Linear(embedding_dimensions, embedding_dimensions, bias=False)
         self.k_proj = Linear(embedding_dimensions, kv_dimensions, bias=False)
@@ -444,6 +446,8 @@ class SelfAttention(Module):
         k = k.view(b, t, self.kv_heads, self.head_dimensions).transpose(1, 2)
         v = v.view(b, t, self.kv_heads, self.head_dimensions).transpose(1, 2)
 
+        q, k = self.position_embeddings.forward(q, k)
+
         z = scaled_dot_product_attention(
             q,
             k,
@@ -459,6 +463,81 @@ class SelfAttention(Module):
         z = self.out_proj.forward(z)
 
         return z
+
+
+class RotaryPositionalEmbedding(Module):
+    """Relative positional embeddings using rotary transformations."""
+
+    @staticmethod
+    def calculate_base(context_length: int, head_dimensions: int) -> int:
+        """
+        Calculate the base value for inverse frequency computation in RoPE.
+        
+        This method computes a context-aware base that adapts to the sequence length
+        and dimensionality of the attention heads. The formula ensures that the maximum
+        wavelength of the rotary embeddings aligns with the context length, allowing
+        the model to effectively encode positional information across the full sequence.
+        
+        The base is calculated as:
+            base = ceil((context_length / (2 * pi)) ** (d / (d - 2)))
+        
+        where d is the head dimension. The exponent d / (d - 2) is derived from the
+        constraint that pairs of dimensions are rotated together in RoPE, requiring
+        d to be even. This formula ensures that the largest wavelength (corresponding
+        to the slowest-rotating frequency component) spans approximately the context
+        length, enabling the model to distinguish positions throughout the entire
+        sequence.
+        
+        Args:
+            context_length: Maximum sequence length the model can process.
+            head_dimensions: Dimensionality of each attention head.
+            
+        Returns:
+            The computed base value (as an integer) used for generating inverse frequencies
+            in the rotary positional embedding calculation.
+        """
+        exponent = head_dimensions / (head_dimensions - 2)
+
+        base = (context_length / (2 * pi)) ** exponent
+        base = ceil(base)
+
+        return base
+
+    @staticmethod
+    def rotate_half(x: Tensor) -> Tensor:
+        x1 = x[..., :x.shape[-1] // 2]
+        x2 = x[..., x.shape[-1] // 2:]
+        
+        return torch.cat([-x2, x1], dim=-1)
+
+    def __init__(self, context_length: int, head_dimensions: int):
+        super().__init__()
+
+        base = self.calculate_base(context_length, head_dimensions)
+
+        alpha = torch.arange(0, head_dimensions, 2).float()
+
+        inv_freq = 1.0 / (
+            base ** (alpha / head_dimensions)
+        )
+
+        self.inv_freq = Buffer(inv_freq)
+
+    def forward(self, q: Tensor, k: Tensor) -> tuple[Tensor, Tensor]:
+        b, h, t, d = q.size()
+
+        position_ids = torch.arange(t).float().to(q.device)
+
+        frequencies = torch.einsum("i , j -> i j", position_ids, self.inv_freq)
+        frequencies = torch.cat([frequencies, frequencies], dim=-1)
+
+        sine = frequencies.sin().unsqueeze(0).unsqueeze(0)
+        cosine = frequencies.cos().unsqueeze(0).unsqueeze(0)
+
+        q_hat = (q * cosine) + (self.rotate_half(q) * sine)
+        k_hat = (k * cosine) + (self.rotate_half(k) * sine)
+
+        return q_hat, k_hat
 
 
 class InvertedBottleneck(Module):
