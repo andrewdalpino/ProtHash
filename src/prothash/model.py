@@ -4,7 +4,7 @@ from typing import Self
 
 import torch
 
-from torch import Tensor, sin
+from torch import Tensor
 
 from torch.nn import (
     Module,
