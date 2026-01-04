@@ -4,29 +4,38 @@ A protein language model that outputs amino acid sequence embeddings for use in 
 
 ## Key Features
 
-- **Blazing fast and efficient**: ProtHash uses as few as 1.5% of its ESMC teacher's total parameters to achieve near-perfect cosine similarity between the two embedding spaces.
+- **Blazing fast and efficient**: ProtHash uses less than 1.5% of its ESMC teacher's total parameters to achieve near-perfect cosine similarity between the two embedding spaces.
 
 - **Biologically-relevant**: Biologically similar proteins will show up nearby in the embedding space enabling downstream tasks such as clustering, classification, and locality-sensitive hashing.
 
 - **Compatible with ESMC**: ProtHash can output embeddings in its native or ESMC teacher's dimensionality - allowing it to serve as either a faster drop-in approximation to ESMC embeddings or a more efficient compressed representation.
 
-- **Quantization-ready**: With quantization-aware post-training, ProtHash allows you to quantize the weights of the model while maintaining similarity to the teacher's embedding space.
+- **Quantization-ready**: With quantization-aware post-training, ProtHash allows you to quantize the weights of the model while maintaining its near-perfect similarity to the teacher's embedding space.
 
 ## Pretrained Models
 
-| Name | Context Length | Embedding Dimensions | Attention Heads (Q/KV) | Encoder Layers | Total Params | Teacher Model | Teacher Dimensions |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| [andrewdalpino/ProtHash-384-Tiny](https://huggingface.co/andrewdalpino/ProtHash-384-Tiny) | 2048 | 384 | 16/4 | 4 | 5M | esmc_300m | 960 |
-| [andrewdalpino/ProtHash-384](https://huggingface.co/andrewdalpino/ProtHash-384) | 2048 | 384 | 16/4 | 10 | 11M | esmc_300m | 960 |
-| [andrewdalpino/ProtHash-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 2048 | 512 | 16/4 | 4 | 8.5M | esmc_600m | 1152 |
-| [andrewdalpino/ProtHash-512](https://huggingface.co/andrewdalpino/ProtHash-512) | 2048 | 512 | 16/4 | 10 | 19M | esmc_600m | 1152 |
+| Name | Context Length | Embedding Dimensions | Attention Heads (Q/KV) | Encoder Layers | Total Params | Teacher Model | Teacher Dimensions | Library Version |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [andrewdalpino/ProtHash-V2-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-V2-512-Tiny) | 2048 | 512 | 16/4 | 4 | 7.4M | esmc_600m | 1152 | 0.2.x |
+| [andrewdalpino/ProtHash-384-Tiny](https://huggingface.co/andrewdalpino/ProtHash-384-Tiny) | 2048 | 384 | 16/4 | 4 | 5M | esmc_300m | 960 | 0.1.x |
+| [andrewdalpino/ProtHash-384](https://huggingface.co/andrewdalpino/ProtHash-384) | 2048 | 384 | 16/4 | 10 | 11M | esmc_300m | 960 | 0.1.x |
+| [andrewdalpino/ProtHash-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 2048 | 512 | 16/4 | 4 | 8.5M | esmc_600m | 1152 | 0.1.x |
+| [andrewdalpino/ProtHash-512](https://huggingface.co/andrewdalpino/ProtHash-512) | 2048 | 512 | 16/4 | 10 | 19M | esmc_600m | 1152 | 0.1.x |
 
-## Pretrained Example
+## Example
 
-First, you'll need the `prothash` and `esm` packages installed into your environment. We recommend using a virtual environment such as Python's `venv` module to prevent version conflicts with any system packages.
+First, you'll need the `prothash` and `esm` packages installed into your environment. For ProtHash version 1 use library version `0.1.x` and for version 2 install library version `0.2.x`. We recommend using a virtual environment such as Python's `venv` module to prevent version conflicts with other packages.
+
+### Version 1
 
 ```sh
-pip install prothash esm
+pip install prothash~=0.1.0 esm
+```
+
+### Version 2
+
+```sh
+pip install prothash~=0.2.0 esm
 ```
 
 Then, load the weights from HuggingFace Hub, tokenize a protein sequence, and pass it to the model. ProtHash adopts the ESM tokenizer as it's amino acids tokenization scheme which consists of a vocabulary of 33 amino acid and special tokens. The output will be an embedding vector that can be used in downstream tasks such as comparing to other protein sequence embeddings, clustering, and near-duplicate detection.
@@ -40,11 +49,11 @@ from prothash.model import ProtHash
 
 tokenizer = EsmSequenceTokenizer()
 
-model_name = "andrewdalpino/ProtHash-512-Tiny"
+model_name = "andrewdalpino/ProtHash-V2-512-Tiny"
 
 model = ProtHash.from_pretrained(model_name)
 
-# Optionally quantize the weights.
+# Optionally quantize the weights to Int8.
 model.quantize_weights()
 
 sequence = input("Enter a sequence: ")
@@ -67,6 +76,8 @@ print(y_embed_teacher.shape)
 ```
 
 ## Training
+
+If you want to train your own custom ProtHash model then follow the instructions below.
 
 ### Clone the project repo
 
@@ -97,7 +108,7 @@ python train.py
 You can change the default arguments like in the example below.
 
 ```sh
-python train --teacher_name="esmc_300m" --max_steps=3500 --embedding_dimensions=256
+python train --teacher_name="esmc_300m" --max_steps=4200 --embedding_dimensions=768 --temperature=4.0
 ```
 
 #### Training Dashboard
@@ -119,9 +130,9 @@ Then navigate to the dashboard using your favorite web browser.
 | --min_sequence_length | 1 | int | The minimum length of the input sequences. |
 | --max_sequence_length | 2048 | int | The maximum length of the input sequences. |
 | --quantization_aware_training | False | bool | Should we add fake quantized tensors to simulate quantized training? |
-| --batch_size | 4 | int | The number of training images to pass through the network at a time. |
+| --batch_size | 4 | int | The number of training samples to pass through the network at a time. |
 | --gradient_accumulation_steps | 32 | int | The number of batches to pass through the network before updating the model weights. |
-| --max_steps | 4200 | int | The number of steps to train for. |
+| --max_steps | 4000 | int | The number of steps to train for. |
 | --learning_rate | 1e-4 | float | The learning rate of the AdamW optimizer. |
 | --max_gradient_norm | 100.0 | float | Clip gradients above this threshold norm before stepping. |
 | --temperature | 8.0 | float | The smoothing parameter of the activations - higher temperature results in smoother activations. |

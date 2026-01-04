@@ -518,16 +518,16 @@ class RotaryPositionalEmbedding(Module):
 
         alpha = torch.arange(0, head_dimensions, 2).float()
 
-        frequencies = 1.0 / (base ** (alpha / head_dimensions))
+        inv_freq = 1.0 / (base ** (alpha / head_dimensions))
 
-        self.frequencies = Buffer(frequencies)
+        self.inv_freq = Buffer(inv_freq)
 
     def forward(self, q: Tensor, k: Tensor) -> tuple[Tensor, Tensor]:
         b, h, t, d = q.size()
 
         position_ids = torch.arange(t).float().to(q.device)
 
-        frequencies = torch.einsum("i , j -> i j", position_ids, self.frequencies)
+        frequencies = torch.einsum("i , j -> i j", position_ids, self.inv_freq)
 
         frequencies = torch.cat([frequencies, frequencies], dim=-1)
 
