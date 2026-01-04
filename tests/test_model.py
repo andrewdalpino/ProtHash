@@ -142,7 +142,7 @@ class TestRotaryPositionalEmbedding(unittest.TestCase):
         base = model.RotaryPositionalEmbedding.calculate_base(
             context_length=512, head_dimensions=64
         )
-        
+
         # Base should be a positive integer
         self.assertIsInstance(base, int)
         self.assertGreater(base, 0)
@@ -150,12 +150,12 @@ class TestRotaryPositionalEmbedding(unittest.TestCase):
     def test_calculate_base_various_dimensions(self):
         """Test calculate_base with various head dimensions."""
         test_cases = [
-            (512, 32),   # Smaller head dim
-            (512, 64),   # Standard head dim
+            (512, 32),  # Smaller head dim
+            (512, 64),  # Standard head dim
             (512, 128),  # Larger head dim
             (1024, 64),  # Longer context
         ]
-        
+
         for context_length, head_dim in test_cases:
             base = model.RotaryPositionalEmbedding.calculate_base(
                 context_length, head_dim
@@ -167,7 +167,7 @@ class TestRotaryPositionalEmbedding(unittest.TestCase):
         """Test that rotate_half preserves tensor shape."""
         x = torch.randn(2, 4, 8, 64)  # [batch, heads, seq, dim]
         rotated = model.RotaryPositionalEmbedding.rotate_half(x)
-        
+
         self.assertEqual(rotated.shape, x.shape)
 
     def test_rotate_half_correctness(self):
@@ -175,88 +175,76 @@ class TestRotaryPositionalEmbedding(unittest.TestCase):
         # Create a simple test case where we can verify the rotation
         x = torch.tensor([[1.0, 2.0, 3.0, 4.0]])  # Shape: (1, 4)
         rotated = model.RotaryPositionalEmbedding.rotate_half(x)
-        
+
         # Expected: [-3.0, -4.0, 1.0, 2.0] (negate second half, swap)
         expected = torch.tensor([[-3.0, -4.0, 1.0, 2.0]])
         self.assertTrue(torch.allclose(rotated, expected))
 
     def test_forward_shape_preservation(self):
         """Test that forward pass preserves q and k shapes."""
-        rope = model.RotaryPositionalEmbedding(
-            context_length=16, head_dimensions=8
-        )
-        
+        rope = model.RotaryPositionalEmbedding(context_length=16, head_dimensions=8)
+
         q = torch.randn(2, 4, 10, 8)  # [batch, heads, seq, dim]
         k = torch.randn(2, 4, 10, 8)
-        
+
         q_hat, k_hat = rope.forward(q, k)
-        
+
         self.assertEqual(q_hat.shape, q.shape)
         self.assertEqual(k_hat.shape, k.shape)
 
     def test_forward_modifies_tensors(self):
         """Test that forward pass modifies q and k tensors."""
-        rope = model.RotaryPositionalEmbedding(
-            context_length=16, head_dimensions=8
-        )
-        
+        rope = model.RotaryPositionalEmbedding(context_length=16, head_dimensions=8)
+
         q = torch.randn(2, 4, 10, 8)
         k = torch.randn(2, 4, 10, 8)
-        
+
         q_hat, k_hat = rope.forward(q, k)
-        
+
         # Rotary embeddings should modify the tensors
         self.assertFalse(torch.allclose(q_hat, q))
         self.assertFalse(torch.allclose(k_hat, k))
 
     def test_forward_different_sequence_lengths(self):
         """Test forward pass with various sequence lengths."""
-        rope = model.RotaryPositionalEmbedding(
-            context_length=32, head_dimensions=8
-        )
-        
+        rope = model.RotaryPositionalEmbedding(context_length=32, head_dimensions=8)
+
         for seq_len in [5, 10, 20, 32]:
             q = torch.randn(1, 2, seq_len, 8)
             k = torch.randn(1, 2, seq_len, 8)
-            
+
             q_hat, k_hat = rope.forward(q, k)
-            
+
             self.assertEqual(q_hat.shape, (1, 2, seq_len, 8))
             self.assertEqual(k_hat.shape, (1, 2, seq_len, 8))
 
     def test_forward_device_consistency(self):
         """Test that forward pass works on the same device as input."""
-        rope = model.RotaryPositionalEmbedding(
-            context_length=16, head_dimensions=8
-        )
-        
+        rope = model.RotaryPositionalEmbedding(context_length=16, head_dimensions=8)
+
         q = torch.randn(1, 2, 10, 8)
         k = torch.randn(1, 2, 10, 8)
-        
+
         q_hat, k_hat = rope.forward(q, k)
-        
+
         # All tensors should be on the same device
         self.assertEqual(q_hat.device, q.device)
         self.assertEqual(k_hat.device, k.device)
 
     def test_position_encoding_uniqueness(self):
         """Test that different positions receive different rotations."""
-        rope = model.RotaryPositionalEmbedding(
-            context_length=16, head_dimensions=8
-        )
-        
+        rope = model.RotaryPositionalEmbedding(context_length=16, head_dimensions=8)
+
         # Create identical values at different positions
         q = torch.ones(1, 1, 5, 8)
         k = torch.ones(1, 1, 5, 8)
-        
+
         q_hat, k_hat = rope.forward(q, k)
-        
+
         # Different positions should have different embeddings
         # Check that not all positions are the same
         for i in range(4):
-            self.assertFalse(
-                torch.allclose(q_hat[0, 0, i, :], q_hat[0, 0, i+1, :])
-            )
+            self.assertFalse(torch.allclose(q_hat[0, 0, i, :], q_hat[0, 0, i + 1, :]))
 
 
 class TestSelfAttention(unittest.TestCase):
@@ -268,7 +256,11 @@ class TestSelfAttention(unittest.TestCase):
     def test_forward_shape_preservation(self):
         """Test that SelfAttention preserves input shape."""
         sa = model.SelfAttention(
-            context_length=16, embedding_dimensions=8, q_heads=2, kv_heads=1, dropout=0.0
+            context_length=16,
+            embedding_dimensions=8,
+            q_heads=2,
+            kv_heads=1,
+            dropout=0.0,
         )
         x = torch.randn(3, 5, 8)
         out = sa.forward(x)
@@ -278,7 +270,11 @@ class TestSelfAttention(unittest.TestCase):
     def test_multi_head_attention(self):
         """Test multi-head attention with equal q and kv heads."""
         sa = model.SelfAttention(
-            context_length=16, embedding_dimensions=16, q_heads=4, kv_heads=4, dropout=0.0
+            context_length=16,
+            embedding_dimensions=16,
+            q_heads=4,
+            kv_heads=4,
+            dropout=0.0,
         )
         x = torch.randn(2, 10, 16)
         out = sa.forward(x)
@@ -288,7 +284,11 @@ class TestSelfAttention(unittest.TestCase):
     def test_grouped_query_attention(self):
         """Test grouped query attention (q_heads > kv_heads)."""
         sa = model.SelfAttention(
-            context_length=16, embedding_dimensions=16, q_heads=4, kv_heads=2, dropout=0.0
+            context_length=16,
+            embedding_dimensions=16,
+            q_heads=4,
+            kv_heads=2,
+            dropout=0.0,
         )
         x = torch.randn(2, 6, 16)
         out = sa.forward(x)
@@ -300,20 +300,32 @@ class TestSelfAttention(unittest.TestCase):
         """Test that non-divisible embedding dimensions raise assertion error."""
         with self.assertRaises(AssertionError):
             model.SelfAttention(
-                context_length=16, embedding_dimensions=7, q_heads=3, kv_heads=1, dropout=0.0
+                context_length=16,
+                embedding_dimensions=7,
+                q_heads=3,
+                kv_heads=1,
+                dropout=0.0,
             )
 
     def test_invalid_head_relationship(self):
         """Test that q_heads < kv_heads raises assertion error."""
         with self.assertRaises(AssertionError):
             model.SelfAttention(
-                context_length=16, embedding_dimensions=8, q_heads=1, kv_heads=2, dropout=0.0
+                context_length=16,
+                embedding_dimensions=8,
+                q_heads=1,
+                kv_heads=2,
+                dropout=0.0,
             )
 
     def test_add_lora_adapters(self):
         """Test adding LoRA adapters to SelfAttention."""
         sa = model.SelfAttention(
-            context_length=16, embedding_dimensions=8, q_heads=2, kv_heads=1, dropout=0.0
+            context_length=16,
+            embedding_dimensions=8,
+            q_heads=2,
+            kv_heads=1,
+            dropout=0.0,
         )
         sa.add_lora_adapters(rank=2, alpha=1.0)
 
@@ -333,7 +345,12 @@ class TestEncoderBlock(unittest.TestCase):
     def test_forward_shape_preservation(self):
         """Test that EncoderBlock preserves input shape."""
         block = model.EncoderBlock(
-            context_length=16, embedding_dimensions=8, q_heads=2, kv_heads=1, hidden_ratio=2, dropout=0.0
+            context_length=16,
+            embedding_dimensions=8,
+            q_heads=2,
+            kv_heads=1,
+            hidden_ratio=2,
+            dropout=0.0,
         )
         x = torch.randn(2, 4, 8)
         out = block.forward(x)
@@ -343,7 +360,12 @@ class TestEncoderBlock(unittest.TestCase):
     def test_residual_connections(self):
         """Test that residual connections are working."""
         block = model.EncoderBlock(
-            context_length=16, embedding_dimensions=8, q_heads=2, kv_heads=1, hidden_ratio=1, dropout=0.0
+            context_length=16,
+            embedding_dimensions=8,
+            q_heads=2,
+            kv_heads=1,
+            hidden_ratio=1,
+            dropout=0.0,
         )
         x = torch.randn(2, 4, 8)
         out = block.forward(x)
@@ -354,7 +376,12 @@ class TestEncoderBlock(unittest.TestCase):
     def test_add_lora_adapters(self):
         """Test adding LoRA adapters to EncoderBlock."""
         block = model.EncoderBlock(
-            context_length=16, embedding_dimensions=8, q_heads=2, kv_heads=1, hidden_ratio=2, dropout=0.0
+            context_length=16,
+            embedding_dimensions=8,
+            q_heads=2,
+            kv_heads=1,
+            hidden_ratio=2,
+            dropout=0.0,
         )
         block.add_lora_adapters(rank=2, alpha=1.0)
 
