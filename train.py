@@ -45,7 +45,7 @@ def main():
     parser.add_argument("--temperature", default=8.0, type=float)
     parser.add_argument("--batch_size", default=4, type=int)
     parser.add_argument("--gradient_accumulation_steps", default=32, type=int)
-    parser.add_argument("--max_steps", default=3500, type=int)
+    parser.add_argument("--max_steps", default=4000, type=int)
     parser.add_argument("--embedding_dimensions", default=512, type=int)
     parser.add_argument("--q_heads", default=16, type=int)
     parser.add_argument("--kv_heads", default=4, type=int)
