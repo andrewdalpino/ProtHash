@@ -456,11 +456,12 @@ class TestONNXModel(unittest.TestCase):
         torch.manual_seed(42)
 
     def test_forward_wraps_embed(self):
-        """Test that ONNXModel.forward wraps ProtHash.embed."""
+        """Test that ONNXModel.forward wraps ProtHash.embed_native."""
         prothash = model.ProtHash(
             vocabulary_size=10,
             padding_index=0,
             context_length=16,
+            teacher_dimensions=8,
             embedding_dimensions=8,
             q_heads=2,
             kv_heads=1,
@@ -473,7 +474,7 @@ class TestONNXModel(unittest.TestCase):
         x = torch.randint(0, 9, (2, 5), dtype=torch.int64)
 
         out_onnx = onnx_model.forward(x)
-        out_embed = prothash.embed(x)
+        out_embed = prothash.embed_native(x)
 
         self.assertTrue(torch.allclose(out_onnx, out_embed))
 
@@ -490,6 +491,7 @@ class TestProtHash(unittest.TestCase):
             vocabulary_size=10,
             padding_index=0,
             context_length=16,
+            teacher_dimensions=8,
             embedding_dimensions=8,
             q_heads=2,
             kv_heads=1,
@@ -504,11 +506,12 @@ class TestProtHash(unittest.TestCase):
         self.assertEqual(out.shape, (2, 5, 8))
 
     def test_embed_returns_cls_token(self):
-        """Test that embed returns CLS token embeddings."""
+        """Test that embed_native returns CLS token embeddings."""
         m = model.ProtHash(
             vocabulary_size=10,
             padding_index=0,
             context_length=16,
+            teacher_dimensions=8,
             embedding_dimensions=8,
             q_heads=2,
             kv_heads=1,
@@ -518,7 +521,7 @@ class TestProtHash(unittest.TestCase):
         )
 
         x = torch.randint(0, 9, (2, 5), dtype=torch.int64)
-        emb = m.embed(x)
+        emb = m.embed_native(x)
 
         # Should return only the first token (CLS) for each sequence
         self.assertEqual(emb.shape, (2, 8))
@@ -529,6 +532,7 @@ class TestProtHash(unittest.TestCase):
             vocabulary_size=10,
             padding_index=0,
             context_length=8,
+            teacher_dimensions=8,
             embedding_dimensions=8,
             q_heads=2,
             kv_heads=1,
@@ -543,12 +547,13 @@ class TestProtHash(unittest.TestCase):
         with self.assertRaises(AssertionError):
             m.forward(x)
 
-    def test_add_adapter_head(self):
-        """Test adding adapter head."""
+    def test_adapter_head_identity_when_dims_match(self):
+        """Test that head is Identity when embedding_dimensions equals teacher_dimensions."""
         m = model.ProtHash(
             vocabulary_size=10,
             padding_index=0,
             context_length=16,
+            teacher_dimensions=8,
             embedding_dimensions=8,
             q_heads=2,
             kv_heads=1,
@@ -557,23 +562,22 @@ class TestProtHash(unittest.TestCase):
             dropout=0.0,
         )
 
-        self.assertFalse(hasattr(m, "head"))
-
-        m.add_adapter_head(out_dimensions=16)
         self.assertTrue(hasattr(m, "head"))
+        self.assertIsInstance(m.head, torch.nn.Identity)
 
         x = torch.randint(0, 9, (2, 5), dtype=torch.int64)
         out = m.forward(x)
 
-        # Output should have adapter head dimensions
-        self.assertEqual(out.shape, (2, 5, 16))
+        # Output should have embedding dimensions (no transformation)
+        self.assertEqual(out.shape, (2, 5, 8))
 
-    def test_remove_adapter_head(self):
-        """Test removing adapter head."""
+    def test_adapter_head_when_dims_differ(self):
+        """Test that head is AdapterHead when embedding_dimensions differs from teacher_dimensions."""
         m = model.ProtHash(
             vocabulary_size=10,
             padding_index=0,
             context_length=16,
+            teacher_dimensions=16,
             embedding_dimensions=8,
             q_heads=2,
             kv_heads=1,
@@ -582,11 +586,14 @@ class TestProtHash(unittest.TestCase):
             dropout=0.0,
         )
 
-        m.add_adapter_head(out_dimensions=16)
         self.assertTrue(hasattr(m, "head"))
+        self.assertIsInstance(m.head, model.AdapterHead)
 
-        m.remove_adapter_head()
-        self.assertFalse(hasattr(m, "head"))
+        x = torch.randint(0, 9, (2, 5), dtype=torch.int64)
+        out = m.forward_with_adapter(x)
+
+        # Output should have teacher dimensions (transformed)
+        self.assertEqual(out.shape, (2, 5, 16))
 
     def test_num_params_property(self):
         """Test num_params property."""
@@ -594,6 +601,7 @@ class TestProtHash(unittest.TestCase):
             vocabulary_size=10,
             padding_index=0,
             context_length=16,
+            teacher_dimensions=8,
             embedding_dimensions=8,
             q_heads=2,
             kv_heads=1,
@@ -612,6 +620,7 @@ class TestProtHash(unittest.TestCase):
             vocabulary_size=10,
             padding_index=0,
             context_length=16,
+            teacher_dimensions=8,
             embedding_dimensions=8,
             q_heads=2,
             kv_heads=1,
@@ -630,6 +639,7 @@ class TestProtHash(unittest.TestCase):
             vocabulary_size=10,
             padding_index=0,
             context_length=16,
+            teacher_dimensions=8,
             embedding_dimensions=8,
             q_heads=2,
             kv_heads=1,
@@ -652,6 +662,7 @@ class TestProtHash(unittest.TestCase):
             vocabulary_size=10,
             padding_index=0,
             context_length=16,
+            teacher_dimensions=8,
             embedding_dimensions=8,
             q_heads=2,
             kv_heads=1,
