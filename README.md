@@ -14,13 +14,14 @@ A protein language model that outputs amino acid sequence embeddings for use in 
 
 ## Pretrained Models
 
-| Name | Context Length | Embedding Dimensions | Attention Heads (Q/KV) | Encoder Layers | Total Params | Teacher Model | Teacher Dimensions | Library Version |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [andrewdalpino/ProtHash-V2-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-V2-512-Tiny) | 2048 | 512 | 16/4 | 4 | 7.4M | esmc_600m | 1152 | 0.2.x |
-| [andrewdalpino/ProtHash-384-Tiny](https://huggingface.co/andrewdalpino/ProtHash-384-Tiny) | 2048 | 384 | 16/4 | 4 | 5M | esmc_300m | 960 | 0.1.x |
-| [andrewdalpino/ProtHash-384](https://huggingface.co/andrewdalpino/ProtHash-384) | 2048 | 384 | 16/4 | 10 | 11M | esmc_300m | 960 | 0.1.x |
-| [andrewdalpino/ProtHash-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 2048 | 512 | 16/4 | 4 | 8.5M | esmc_600m | 1152 | 0.1.x |
-| [andrewdalpino/ProtHash-512](https://huggingface.co/andrewdalpino/ProtHash-512) | 2048 | 512 | 16/4 | 10 | 19M | esmc_600m | 1152 | 0.1.x |
+| Name | Context Length | Position Embeddings | Embedding Dimensions | Attention Heads (Q/KV) | Encoder Layers | Total Params | Teacher Model | Teacher Dimensions | Library Version |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [andrewdalpino/ProtHash-V2-384-Tiny](https://huggingface.co/andrewdalpino/ProtHash-V2-384-Tiny) | 2048 | Relative | 384 | 16/4 | 4 | 4.2M | esmc_300m | 960 | 0.2.x |
+| [andrewdalpino/ProtHash-V2-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-V2-512-Tiny) | 2048 | Relative | 512 | 16/4 | 4 | 7.4M | esmc_600m | 1152 | 0.2.x |
+| [andrewdalpino/ProtHash-384-Tiny](https://huggingface.co/andrewdalpino/ProtHash-384-Tiny) | 2048 | Absolute | 384 | 16/4 | 4 | 5M | esmc_300m | 960 | 0.1.x |
+| [andrewdalpino/ProtHash-384](https://huggingface.co/andrewdalpino/ProtHash-384) | 2048 | Absolute | 384 | 16/4 | 10 | 11M | esmc_300m | 960 | 0.1.x |
+| [andrewdalpino/ProtHash-512-Tiny](https://huggingface.co/andrewdalpino/ProtHash-512-Tiny) | 2048 | Absolute | 512 | 16/4 | 4 | 8.5M | esmc_600m | 1152 | 0.1.x |
+| [andrewdalpino/ProtHash-512](https://huggingface.co/andrewdalpino/ProtHash-512) | 2048 | Absolute | 512 | 16/4 | 10 | 19M | esmc_600m | 1152 | 0.1.x |
 
 ## Example
 
