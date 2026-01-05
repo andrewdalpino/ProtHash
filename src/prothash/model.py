@@ -36,7 +36,8 @@ from huggingface_hub import PyTorchModelHubMixin
 
 class ProtHash(Module, PyTorchModelHubMixin):
     """
-    An encoder-only transformer model for protein sequence embedding.
+    An encoder-only transformer model for protein sequence embedding with an adapter head
+    designed for knowledge distillation.
     """
 
     def __init__(
@@ -69,11 +70,9 @@ class ProtHash(Module, PyTorchModelHubMixin):
         )
 
         if embedding_dimensions != teacher_dimensions:
-            head = AdapterHead(embedding_dimensions, teacher_dimensions)
+            self.head = AdapterHead(embedding_dimensions, teacher_dimensions)
         else:
-            head = Identity()
-
-        self.head = head
+            self.head = Identity()
 
         self.vocabulary_size = vocabulary_size
         self.padding_index = padding_index
@@ -164,7 +163,7 @@ class ProtHash(Module, PyTorchModelHubMixin):
     @torch.inference_mode()
     def embed_native(self, x: Tensor) -> Tensor:
         """
-        Output the contextual embeddings of the input sequence in native dimensionality.
+        Output the contextual embeddings of the input sequence in native embedding dimensionality.
 
         Args:
             x (Tensor): The token index sequence of shape (batch_size, sequence_length).
@@ -200,8 +199,11 @@ class ProtHash(Module, PyTorchModelHubMixin):
         return z
 
 
-class ONNXModel(Module):
-    """A wrapper class for exporting the ProtHash model to ONNX format."""
+class ONNXModelNative(Module):
+    """
+    A wrapper class for exporting the ProtHash model to ONNX format with output in
+    native embedding dimensionality.
+    """
 
     def __init__(self, model: ProtHash):
         super().__init__()
@@ -210,6 +212,21 @@ class ONNXModel(Module):
 
     def forward(self, x: Tensor) -> Tensor:
         return self.model.embed_native(x)
+
+
+class ONNXModelTeacher(Module):
+    """
+    A wrapper class for exporting the ProtHash model to ONNX format with output in
+    its teacher's embedding dimensionality.
+    """
+
+    def __init__(self, model: ProtHash):
+        super().__init__()
+
+        self.model = model
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.model.embed_teacher(x)
 
 
 class Encoder(Module):
@@ -419,7 +436,7 @@ class SelfAttention(Module):
             torch.int8, group_size=self.head_dimensions
         )
 
-        config = QATConfig(weight_config=weight_config)
+        config = QATConfig(weight_config=weight_config, step="prepare")
 
         quantize_(self, config)
 
